@@ -1,0 +1,11 @@
+[workspace]
+authors = ["Thomas Wiecki <thomas.wiecki@gmail.com>"]
+channels = ["conda-forge"]
+name = "mmm-param-recovery"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+pymc-marketing = ">=0.14.0,<0.15"
