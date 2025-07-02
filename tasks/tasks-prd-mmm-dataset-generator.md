@@ -4,25 +4,25 @@ Based on the Product Requirements Document: MMM Dataset Generator
 
 ## Relevant Files
 
-- `src/mmm_generator/__init__.py` - Module initialization and main API exports
-- `src/mmm_generator/config.py` - Configuration dataclasses for all parameters
-- `src/mmm_generator/core.py` - Main data generation function and core logic
-- `src/mmm_generator/utils.py` - Seed management and random number generation utilities
-- `src/mmm_generator/validation.py` - Data validation and quality checks
-- `src/mmm_generator/presets.py` - Default configuration presets for common use cases
-- `src/mmm_generator/channels.py` - Channel pattern generation and configuration (placeholder)
-- `src/mmm_generator/regions.py` - Geographic region management and hierarchical structure (placeholder)
-- `src/mmm_generator/transforms.py` - Adstock and saturation function implementations (placeholder)
-- `src/mmm_generator/ground_truth.py` - Ground truth parameter calculation and ROAS computation (placeholder)
-- `src/mmm_generator/visualization.py` - Plotting functions for data visualization (placeholder)
+- `mmm_param_recovery/data_generator/__init__.py` - Module initialization and main API exports
+- `mmm_param_recovery/data_generator/config.py` - Configuration dataclasses for all parameters
+- `mmm_param_recovery/data_generator/core.py` - Main data generation function and core logic
+- `mmm_param_recovery/data_generator/utils.py` - Seed management and random number generation utilities
+- `mmm_param_recovery/data_generator/validation.py` - Data validation and quality checks
+- `mmm_param_recovery/data_generator/presets.py` - Default configuration presets for common use cases
+- `mmm_param_recovery/data_generator/channels.py` - Channel pattern generation and configuration (placeholder)
+- `mmm_param_recovery/data_generator/regions.py` - Geographic region management and hierarchical structure (placeholder)
+- `mmm_param_recovery/data_generator/transforms.py` - Adstock and saturation function implementations (placeholder)
+- `mmm_param_recovery/data_generator/ground_truth.py` - Ground truth parameter calculation and ROAS computation (placeholder)
+- `mmm_param_recovery/data_generator/visualization.py` - Plotting functions for data visualization (placeholder)
 - `examples/basic_usage.py` - Basic example script demonstrating the module
-- `examples/notebooks/mmm_generator_demo.py` - Marimo notebook for interactive demonstration
-- `tests/unit/test_channels.py` - Unit tests for channel generation
-- `tests/unit/test_regions.py` - Unit tests for region management
-- `tests/unit/test_transforms.py` - Unit tests for adstock and saturation functions
-- `tests/unit/test_ground_truth.py` - Unit tests for ground truth calculations
-- `tests/integration/test_full_pipeline.py` - Integration tests for complete data generation
-- `pixi.toml` - Pixi environment configuration with required dependencies
+- `examples/notebooks/data_generator_demo.py` - Marimo notebook for interactive demonstration
+- `tests/test_channels.py` - Unit tests for channel generation
+- `tests/test_regions.py` - Unit tests for region management
+- `tests/test_transforms.py` - Unit tests for adstock and saturation functions
+- `tests/test_ground_truth.py` - Unit tests for ground truth calculations
+- `tests/test_full_pipeline.py` - Integration tests for complete data generation
+- `pyproject.toml` - Pyproject environment configuration with required dependencies
 - `README.md` - Documentation updates to reflect new features
 
 ### Notes
@@ -42,8 +42,8 @@ Based on the Product Requirements Document: MMM Dataset Generator
   - [x] 1.4 Implement seed management and random number generation utilities
   - [x] 1.5 Add error handling and warning systems for invalid parameter combinations
   - [x] 1.6 Create default configuration presets for common use cases
-  - [ ] 1.7 Implement output schema compliance with required column structure (`date`, `geo`, `y`, `x1-*`, `x2-*`, ..., `c1-*`, `c2-*`, ...)
-  - [ ] 1.8 Add data integrity validation ensuring unique date-geo combinations and no missing values
+  - [x] 1.7 Implement output schema compliance with required column structure (`date`, `geo`, `y`, `x1-*`, `x2-*`, ..., `c1-*`, `c2-*`, ...)
+  - [x] 1.8 Add data integrity validation ensuring unique date-geo combinations and no missing values
 
 - [ ] 2.0 Channel Pattern Generation System
   - [ ] 2.1 Implement linear trend channel pattern with configurable parameters look for example in [data.ipynb]
