@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mmm-param-recovery"
+version = "0.1.0"
+description = "A package for generating synthetic MMM (Media Mix Modeling) datasets for parameter recovery studies"
+authors = [{name = "Thomas Wiecki", email = "thomas.wiecki@gmail.com"}]
+requires-python = ">=3.8"
+dependencies = [
+    "pymc-marketing>=0.14.0,<0.15",
+    "meridian>=0.4.0,<0.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4.1,<9",
+    "ruff>=0.3.0",
+    "pre-commit>=3.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mmm_param_recovery*"]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[tool.pixi.pypi-dependencies]
+mmm-param-recovery = { path = ".", editable = true }
+
+[tool.pixi.dependencies]
+pytest = ">=8.4.1,<9"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short" 
