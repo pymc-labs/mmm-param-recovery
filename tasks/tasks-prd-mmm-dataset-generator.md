@@ -52,14 +52,10 @@ Based on the Product Requirements Document: MMM Dataset Generator
   - [x] 2.4 Implement on/off channel pattern with random activation look for example in [data.ipynb]
   - [x] 2.6 Add channel parameter validation and reasonable range checks
 
-- [ ] 3.0 Adstock and Saturation Transformations
-  - [ ] 3.1 Implement geometric adstock transformation with PyMC Marketing integration
-  - [ ] 3.2 Implement Hill saturation function with configurable parameters
-  - [ ] 3.3 Implement Logistic saturation function with configurable parameters
-  - [ ] 3.4 Create transformation function registry for string-based selection
-  - [ ] 3.5 Add support for allowing different adstock/saturation combinations per channel
-  - [ ] 3.6 Implement transformation parameter validation
-  - [ ] 3.7 Use PyMC MArketing MediaTransforms for applying multiple transforms sequentially
+- [x] 3.0 Adstock and Saturation Transformations
+  - [x] 3.1 Implement wrapper to apply adstock and saturation transforms from PyMC Marketing to the provided spend data.
+  - [x] 3.2 Add support for allowing different adstock/saturation combinations per channel
+  - [x] 3.3 Implement tests for transforms.py
 
 - [ ] 4.0 Geographic Region Management
   - [ ] 4.1 Create region configuration system supporting one or more regions
