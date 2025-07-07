@@ -50,9 +50,6 @@ def validate_config(config: MMMDataConfig) -> None:
     # Region validation
     errors.extend(_validate_regions(config.regions))
     
-    # Transformation validation
-    errors.extend(_validate_transforms(config.transforms))
-    
     # Raise errors if any found
     if errors:
         error_message = "Configuration validation failed:\n" + "\n".join(f"- {error}" for error in errors)
@@ -177,40 +174,6 @@ def _validate_regions(regions: RegionConfig) -> List[str]:
             # Check for duplicate names
             if len(regions.region_names) != len(set(regions.region_names)):
                 errors.append("Region names must be unique")
-    
-    return errors
-
-
-def _validate_transforms(transforms: TransformConfig) -> List[str]:
-    """Validate transformation configuration."""
-    errors = []
-    
-    # Adstock validation
-    if transforms.adstock_alpha < 0 or transforms.adstock_alpha > 1:
-        errors.append("adstock_alpha must be between 0 and 1")
-    
-    if transforms.adstock_lam <= 0:
-        errors.append("adstock_lam must be positive")
-    
-    if transforms.adstock_k <= 0:
-        errors.append("adstock_k must be positive")
-    
-    # Saturation validation
-    if transforms.saturation_ec50 <= 0:
-        errors.append("saturation_ec50 must be positive")
-    
-    if transforms.saturation_slope <= 0:
-        errors.append("saturation_slope must be positive")
-    
-    if transforms.saturation_max <= 0:
-        errors.append("saturation_max must be positive")
-    
-    # Custom function validation
-    if transforms.adstock_type == "custom" and transforms.custom_adstock_func is None:
-        errors.append("custom_adstock_func must be provided for custom adstock type")
-    
-    if transforms.saturation_type == "custom" and transforms.custom_saturation_func is None:
-        errors.append("custom_saturation_func must be provided for custom saturation type")
     
     return errors
 
@@ -350,8 +313,8 @@ def suggest_fixes(config: MMMDataConfig, issues: List[str]) -> Dict[str, str]:
         elif "base_spend must be non-negative" in issue:
             suggestions[issue] = "Set base_spend to a positive value"
         
-        elif "adstock_alpha must be between 0 and 1" in issue:
-            suggestions[issue] = "Set adstock_alpha to a value between 0 and 1"
+        elif "adstock_kwargs alpha must be between 0 and 1" in issue:
+            suggestions[issue] = "Set adstock_kwargs alpha to a value between 0 and 1"
         
         elif "seed must be between 0 and 2^32 - 1" in issue:
             suggestions[issue] = "Use a seed value between 0 and 4294967295"

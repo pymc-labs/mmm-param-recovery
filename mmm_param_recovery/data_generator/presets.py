@@ -49,9 +49,9 @@ def get_preset_config(preset_name: str) -> MMMDataConfig:
 
 
 def _get_basic_preset() -> MMMDataConfig:
-    """Basic preset with simple configuration for learning and testing."""
+    """Basic preset for learning and testing."""
     return MMMDataConfig(
-        n_periods=52,
+        n_periods=52,  # 1 year of weekly data
         channels=[
             ChannelConfig(
                 name="x-TV",
@@ -65,7 +65,14 @@ def _get_basic_preset() -> MMMDataConfig:
                 pattern="linear_trend",
                 base_spend=1500.0,
                 spend_trend=0.05,
-                base_effectiveness=0.4
+                base_effectiveness=0.5
+            ),
+            ChannelConfig(
+                name="x-Print",
+                pattern="linear_trend",
+                base_spend=800.0,
+                spend_trend=-0.01,
+                base_effectiveness=0.3
             )
         ],
         regions=RegionConfig(
@@ -73,8 +80,10 @@ def _get_basic_preset() -> MMMDataConfig:
             region_names=["geo_a"]
         ),
         transforms=TransformConfig(
-            adstock_alpha=0.5,
-            saturation_ec50=1500.0
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.5},
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 1500.0}
         ),
         seed=42
     )
@@ -116,8 +125,10 @@ def _get_seasonal_preset() -> MMMDataConfig:
             seasonal_amplitude=0.3
         ),
         transforms=TransformConfig(
-            adstock_alpha=0.6,
-            saturation_ec50=2000.0
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.6},
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 2000.0}
         ),
         seed=123
     )
@@ -155,8 +166,10 @@ def _get_multi_region_preset() -> MMMDataConfig:
             region_names=["geo_a", "geo_b", "geo_c", "geo_d"]
         ),
         transforms=TransformConfig(
-            adstock_alpha=0.55,
-            saturation_ec50=1800.0
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.55},
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 1800.0}
         ),
         seed=456
     )
@@ -205,8 +218,10 @@ def _get_high_frequency_preset() -> MMMDataConfig:
             region_names=["geo_a"]
         ),
         transforms=TransformConfig(
-            adstock_alpha=0.3,  # Lower adstock for digital channels
-            saturation_ec50=1000.0
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.3},  # Lower adstock for digital channels
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 1000.0}
         ),
         seed=789
     )
@@ -258,8 +273,10 @@ def _get_digital_heavy_preset() -> MMMDataConfig:
             region_names=["geo_a"]
         ),
         transforms=TransformConfig(
-            adstock_alpha=0.4,
-            saturation_ec50=1500.0
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.4},
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 1500.0}
         ),
         seed=321
     )
@@ -304,8 +321,10 @@ def _get_traditional_media_preset() -> MMMDataConfig:
             region_names=["geo_a", "geo_b", "geo_c"]
         ),
         transforms=TransformConfig(
-            adstock_alpha=0.7,  # Higher adstock for traditional media
-            saturation_ec50=3000.0
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.7},  # Higher adstock for traditional media
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 3000.0}
         ),
         seed=654
     )
@@ -338,8 +357,10 @@ def _get_small_business_preset() -> MMMDataConfig:
             sales_volatility=0.2
         ),
         transforms=TransformConfig(
-            adstock_alpha=0.4,
-            saturation_ec50=400.0
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.4},
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 400.0}
         ),
         seed=987
     )
@@ -398,8 +419,10 @@ def _get_enterprise_preset() -> MMMDataConfig:
             region_names=["geo_a", "geo_b", "geo_c", "geo_d", "geo_e", "geo_f", "geo_g", "geo_h"]
         ),
         transforms=TransformConfig(
-            adstock_alpha=0.6,
-            saturation_ec50=4000.0
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.6},
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 4000.0}
         ),
         seed=147
     )
@@ -439,8 +462,10 @@ def _get_research_preset() -> MMMDataConfig:
             sales_volatility=0.1  # Lower volatility for cleaner signals
         ),
         transforms=TransformConfig(
-            adstock_alpha=0.5,
-            saturation_ec50=1000.0
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.5},
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 1000.0}
         ),
         seed=258
     )
@@ -478,8 +503,10 @@ def _get_demo_preset() -> MMMDataConfig:
             region_names=["geo_a", "geo_b"]
         ),
         transforms=TransformConfig(
-            adstock_alpha=0.6,
-            saturation_ec50=2000.0
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.6},
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 2000.0}
         ),
         seed=369
     )

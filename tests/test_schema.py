@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Dict, Any
 
 from mmm_param_recovery.data_generator import generate_mmm_dataset
-from mmm_param_recovery.data_generator.config import MMMDataConfig, ChannelConfig, RegionConfig
+from mmm_param_recovery.data_generator.config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
 
 
 def test_mmm_schema():
@@ -23,6 +23,12 @@ def test_mmm_schema():
             ChannelConfig(name='digital', base_spend=500.0)
         ],
         regions=RegionConfig(n_regions=2, region_names=['North', 'South']),
+        transforms=TransformConfig(
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": 0.6},
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": 1.0, "kappa": 1000.0}
+        ),
         control_variables={
             'price': {'base_value': 10.0, 'volatility': 0.1},
             'promotion': {'base_value': 0.2, 'volatility': 0.05}

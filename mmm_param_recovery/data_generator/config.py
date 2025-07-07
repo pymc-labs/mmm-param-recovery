@@ -7,7 +7,7 @@ transformation functions.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Literal, Callable
+from typing import Any, Dict, List, Optional, Literal, Callable, Union
 import numpy as np
 
 
@@ -64,35 +64,26 @@ class TransformConfig:
     """Configuration for adstock and saturation transformations."""
     
     # Adstock parameters
-    adstock_type: Literal["geometric", "weibull", "custom"] = "geometric"
-    adstock_alpha: float = 0.5  # Retention rate for geometric adstock
-    adstock_lam: float = 0.5  # Shape parameter for Weibull adstock
-    adstock_k: float = 2.0  # Scale parameter for Weibull adstock
+    adstock_fun: str | list[str] | None = "geometric_adstock"
+    adstock_kwargs: Dict[str, Any] | list[Dict[str, Any]] = field(default_factory=dict)
     
     # Saturation parameters
-    saturation_type: Literal["hill", "logistic", "custom"] = "hill"
-    saturation_ec50: float = 1000.0  # Half-saturation point
-    saturation_slope: float = 1.0  # Slope parameter for Hill function
-    saturation_max: float = 1.0  # Maximum saturation level
+    saturation_fun: str | list[str] | None = "hill_function"
+    saturation_kwargs: Dict[str, Any] | list[Dict[str, Any]] = field(default_factory=dict)
     
-    # Custom transformation functions
-    custom_adstock_func: Optional[Callable] = None
-    custom_saturation_func: Optional[Callable] = None
+    def get_adstock_kwargs(self, channel_idx: int = 0) -> Dict[str, Any]:
+        """Get adstock kwargs for a specific channel."""
+        if isinstance(self.adstock_kwargs, list):
+            # Cycle through the list if channel_idx exceeds length
+            return self.adstock_kwargs[channel_idx % len(self.adstock_kwargs)]
+        return self.adstock_kwargs
     
-    def __post_init__(self):
-        """Validate transformation parameters."""
-        if not 0 <= self.adstock_alpha <= 1:
-            raise ValueError("adstock_alpha must be between 0 and 1")
-        if self.adstock_lam <= 0:
-            raise ValueError("adstock_lam must be positive")
-        if self.adstock_k <= 0:
-            raise ValueError("adstock_k must be positive")
-        if self.saturation_ec50 <= 0:
-            raise ValueError("saturation_ec50 must be positive")
-        if self.saturation_slope <= 0:
-            raise ValueError("saturation_slope must be positive")
-        if self.saturation_max <= 0:
-            raise ValueError("saturation_max must be positive")
+    def get_saturation_kwargs(self, channel_idx: int = 0) -> Dict[str, Any]:
+        """Get saturation kwargs for a specific channel."""
+        if isinstance(self.saturation_kwargs, list):
+            # Cycle through the list if channel_idx exceeds length
+            return self.saturation_kwargs[channel_idx % len(self.saturation_kwargs)]
+        return self.saturation_kwargs
 
 
 @dataclass
@@ -209,8 +200,10 @@ DEFAULT_CONFIG = MMMDataConfig(
         region_names=["geo_a", "geo_b", "geo_c"]
     ),
     transforms=TransformConfig(
-        adstock_alpha=0.6,
-        saturation_ec50=2000.0
+        adstock_fun="geometric_adstock",
+        adstock_kwargs=[{"alpha": 0.6}, {"alpha": 0.7}, {"alpha": 0.8}],
+        saturation_fun="hill_function",
+        saturation_kwargs=[{"slope": 1.0, "kappa": 2000.0}, {"slope": 1.0, "kappa": 2500.0}, {"slope": 1.0, "kappa": 3000.0}]
     ),
     control_variables={
         "price": {

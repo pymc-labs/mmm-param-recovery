@@ -267,22 +267,26 @@ def _apply_transformations_to_data(
     for column in spend_data.columns:
         channel_name = column.split('_')[0]  # Extract channel name from column
         
-        # Find channel config
-        channel_config = next(
-            (ch for ch in config.channels if ch.name == channel_name),
-            None
-        )
+        # Find channel config and index
+        channel_idx = None
+        channel_config = None
+        for i, ch in enumerate(config.channels):
+            if ch.name == channel_name:
+                channel_idx = i
+                channel_config = ch
+                break
         
-        if channel_config is None:
+        if channel_config is None or channel_idx is None:
             warnings.warn(f"No config found for channel {channel_name}")
             transformed_data[column.replace('_spend', '_transformed')] = spend_data[column]
             continue
         
-        # Apply transformations
+        # Apply transformations with channel index
         transformed_spend = apply_transformations(
             spend_data[column].values, # type: ignore
             config.transforms,
-            channel_config
+            channel_config,
+            channel_idx=channel_idx
         )
         
         transformed_column = column.replace('_spend', '_transformed')

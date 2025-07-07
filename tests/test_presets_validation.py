@@ -3,6 +3,7 @@
 Test script to verify that all presets pass schema validation.
 """
 
+import pandas as pd
 from mmm_param_recovery.data_generator.presets import (
     get_preset_config, 
     list_available_presets, 
@@ -95,13 +96,17 @@ def test_preset_data_generation():
             assert 'data' in result, f"Preset {preset_name} should return data"
             assert 'config' in result, f"Preset {preset_name} should return config"
             
-            data = result['data']
+            data: pd.DataFrame = result['data'] # type: ignore
             
             # Verify basic data properties
             assert len(data) > 0, f"Preset {preset_name} should generate non-empty data"
             assert 'date' in data.columns, f"Preset {preset_name} should have date column"
             assert 'geo' in data.columns, f"Preset {preset_name} should have geo column"
             assert 'y' in data.columns, f"Preset {preset_name} should have y column"
+            
+            # Check that we have at least one channel column (x1, x2, etc.)
+            channel_columns = [col for col in data.columns if col.startswith('x')]
+            assert len(channel_columns) > 0, f"Preset {preset_name} should have at least one channel column"
             
             # Verify expected number of rows
             expected_rows = config.n_periods * config.regions.n_regions
@@ -130,10 +135,10 @@ def test_customize_preset():
         
         # Test nested customization
         config = customize_preset('basic', **{
-            'transforms.adstock_alpha': 0.8,
+            'transforms.adstock_kwargs': {"alpha": 0.8},
             'regions.n_regions': 3
         })
-        assert config.transforms.adstock_alpha == 0.8, "Nested customization should work"
+        assert config.transforms.adstock_kwargs["alpha"] == 0.8, "Nested customization should work" # type: ignore
         assert config.regions.n_regions == 3, "Nested customization should work"
         
         print("  ✅ Preset customization works correctly")
