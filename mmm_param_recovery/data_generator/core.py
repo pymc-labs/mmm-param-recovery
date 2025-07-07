@@ -178,20 +178,18 @@ def _generate_channel_spend_data(
     spend_data = {}
     
     for channel in config.channels:
-        for region_idx, region_name in enumerate(config.regions.region_names):
-            # Generate base spend pattern
+        for region_idx, region_name in enumerate(config.regions.region_names): # type: ignore
+            # Generate independent spend pattern for this region
+            # Use region-specific seed for independence
+            region_seed = config.seed + region_idx * 1000 if config.seed is not None else None
+            
             base_spend = generate_channel_spend(
-                channel, time_index, config.seed
+                channel, time_index, region_seed
             )
             
-            # Add regional variation if multiple regions
-            if config.regions.n_regions > 1:
-                regional_factor = _generate_regional_channel_factor(
-                    config, channel, region_idx
-                )
-                base_spend = base_spend * regional_factor
-            
             # Add spend noise
+            if region_seed is not None:
+                np.random.seed(region_seed + 500)  # Different seed for noise
             spend_noise = np.random.normal(
                 0, channel.spend_volatility * base_spend
             )
@@ -203,31 +201,6 @@ def _generate_channel_spend_data(
     return pd.DataFrame(spend_data, index=time_index)
 
 
-def _generate_regional_channel_factor(
-    config: MMMDataConfig, 
-    channel: ChannelConfig, 
-    region_idx: int
-) -> np.ndarray:
-    """Generate regional variation factor for channel effectiveness."""
-    # Use correlated random numbers for regional similarity
-    if region_idx == 0:
-        base_factor = np.random.normal(
-            1.0, channel.regional_effectiveness_variation
-        )
-    else:
-        # Correlate with previous regions
-        correlation = config.regions.channel_effectiveness_correlation
-        base_factor = (
-            correlation * np.random.normal(1.0, 0.1) +
-            (1 - correlation) * np.random.normal(
-                1.0, channel.regional_effectiveness_variation
-            )
-        )
-    
-    # Ensure factor is positive
-    return np.maximum(0.1, base_factor)
-
-
 def _generate_baseline_data(
     config: MMMDataConfig, 
     time_index: pd.DatetimeIndex
@@ -235,7 +208,7 @@ def _generate_baseline_data(
     """Generate baseline sales data for all regions."""
     baseline_data = {}
     
-    for region_idx, region_name in enumerate(config.regions.region_names):
+    for region_idx, region_name in enumerate(config.regions.region_names): # type: ignore
         baseline_sales = generate_regional_baseline(
             config.regions, time_index, region_idx, config.seed
         )
@@ -307,7 +280,7 @@ def _apply_transformations_to_data(
         
         # Apply transformations
         transformed_spend = apply_transformations(
-            spend_data[column].values,
+            spend_data[column].values, # type: ignore
             config.transforms,
             channel_config
         )
@@ -326,7 +299,7 @@ def _calculate_channel_contributions(
     """Calculate channel contributions to sales."""
     contributions_data = {}
     
-    for region_name in config.regions.region_names:
+    for region_name in config.regions.region_names: # type: ignore
         region_contributions = {}
         
         for channel in config.channels:
@@ -371,14 +344,6 @@ def _calculate_channel_effectiveness(
         # For now, use average trend
         effectiveness *= (1 + channel.effectiveness_trend / 2)
     
-    # Add regional variation
-    region_idx = config.regions.region_names.index(region_name)
-    if config.regions.n_regions > 1:
-        regional_factor = _generate_regional_channel_factor(
-            config, channel, region_idx
-        )
-        effectiveness *= regional_factor
-    
     return effectiveness
 
 
@@ -397,7 +362,7 @@ def _combine_data(
     
     # Generate all date-geo combinations
     for date in time_index:
-        for region_name in config.regions.region_names:
+        for region_name in config.regions.region_names: # type: ignore
             row_data = {'date': date, 'geo': region_name}
             
             # Add channel spend data (x1, x2, x3, ...)
@@ -406,7 +371,7 @@ def _combine_data(
                 if spend_col in spend_data.columns:
                     # Use consistent x{i+1} format for channel columns
                     column_name = f'x{i+1}'
-                    row_data[column_name] = spend_data.loc[date, spend_col]
+                    row_data[column_name] = spend_data.loc[date, spend_col] # type: ignore
                 else:
                     column_name = f'x{i+1}'
                     row_data[column_name] = 0.0
@@ -414,7 +379,7 @@ def _combine_data(
             # Add control variables (c1, c2, c3, ...)
             for i, (var_name, var_config) in enumerate(config.control_variables.items()):
                 if var_name in control_data.columns:
-                    row_data[f'c{i+1}'] = control_data.loc[date, var_name]
+                    row_data[f'c{i+1}'] = control_data.loc[date, var_name] # type: ignore
                 else:
                     row_data[f'c{i+1}'] = 0.0
             
@@ -424,11 +389,11 @@ def _combine_data(
             
             baseline_sales = 0.0
             if baseline_col in baseline_data.columns:
-                baseline_sales = baseline_data.loc[date, baseline_col]
+                baseline_sales = baseline_data.loc[date, baseline_col] # type: ignore
             
             total_contribution = 0.0
             if total_contribution_col in contributions_data.columns:
-                total_contribution = contributions_data.loc[date, total_contribution_col]
+                total_contribution = contributions_data.loc[date, total_contribution_col] # type: ignore
             
             row_data['y'] = baseline_sales + total_contribution
             

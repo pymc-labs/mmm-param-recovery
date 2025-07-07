@@ -150,9 +150,6 @@ def _validate_single_channel(channel: ChannelConfig, index: int) -> List[str]:
     if channel.base_effectiveness < 0:
         errors.append(f"Channel {channel.name}: base_effectiveness must be non-negative")
     
-    if channel.regional_effectiveness_variation < 0:
-        errors.append(f"Channel {channel.name}: regional_effectiveness_variation must be non-negative")
-    
     return errors
 
 
@@ -171,18 +168,6 @@ def _validate_regions(regions: RegionConfig) -> List[str]:
     
     if regions.seasonal_amplitude < 0 or regions.seasonal_amplitude > 1:
         errors.append("seasonal_amplitude must be between 0 and 1")
-    
-    if regions.regional_sales_variation < 0:
-        errors.append("regional_sales_variation must be non-negative")
-    
-    if regions.regional_trend_variation < 0:
-        errors.append("regional_trend_variation must be non-negative")
-    
-    if regions.region_correlation < -1 or regions.region_correlation > 1:
-        errors.append("region_correlation must be between -1 and 1")
-    
-    if regions.channel_effectiveness_correlation < -1 or regions.channel_effectiveness_correlation > 1:
-        errors.append("channel_effectiveness_correlation must be between -1 and 1")
     
     # Region names validation
     if regions.region_names is not None:

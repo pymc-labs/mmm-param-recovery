@@ -133,32 +133,26 @@ def _get_multi_region_preset() -> MMMDataConfig:
                 pattern="linear_trend",
                 base_spend=2500.0,
                 spend_trend=0.01,
-                base_effectiveness=0.6,
-                regional_effectiveness_variation=0.2
+                base_effectiveness=0.6
             ),
             ChannelConfig(
                 name="x-Digital",
                 pattern="linear_trend",
                 base_spend=1800.0,
                 spend_trend=0.08,
-                base_effectiveness=0.5,
-                regional_effectiveness_variation=0.15
+                base_effectiveness=0.5
             ),
             ChannelConfig(
                 name="x-Print",
                 pattern="linear_trend",
                 base_spend=800.0,
                 spend_trend=-0.03,
-                base_effectiveness=0.3,
-                regional_effectiveness_variation=0.25
+                base_effectiveness=0.3
             )
         ],
         regions=RegionConfig(
             n_regions=4,
-            region_names=["geo_a", "geo_b", "geo_c", "geo_d"],
-            regional_sales_variation=0.25,
-            regional_trend_variation=0.005,
-            region_correlation=0.6
+            region_names=["geo_a", "geo_b", "geo_c", "geo_d"]
         ),
         transforms=TransformConfig(
             adstock_alpha=0.55,
@@ -307,9 +301,7 @@ def _get_traditional_media_preset() -> MMMDataConfig:
         ],
         regions=RegionConfig(
             n_regions=3,
-            region_names=["geo_a", "geo_b", "geo_c"],
-            regional_sales_variation=0.3,
-            region_correlation=0.5
+            region_names=["geo_a", "geo_b", "geo_c"]
         ),
         transforms=TransformConfig(
             adstock_alpha=0.7,  # Higher adstock for traditional media
@@ -403,10 +395,7 @@ def _get_enterprise_preset() -> MMMDataConfig:
         ],
         regions=RegionConfig(
             n_regions=8,
-            region_names=["geo_a", "geo_b", "geo_c", "geo_d", "geo_e", "geo_f", "geo_g", "geo_h"],
-            regional_sales_variation=0.2,
-            regional_trend_variation=0.003,
-            region_correlation=0.7
+            region_names=["geo_a", "geo_b", "geo_c", "geo_d", "geo_e", "geo_f", "geo_g", "geo_h"]
         ),
         transforms=TransformConfig(
             adstock_alpha=0.6,
@@ -486,9 +475,7 @@ def _get_demo_preset() -> MMMDataConfig:
         ],
         regions=RegionConfig(
             n_regions=2,
-            region_names=["geo_a", "geo_b"],
-            regional_sales_variation=0.2,
-            region_correlation=0.6
+            region_names=["geo_a", "geo_b"]
         ),
         transforms=TransformConfig(
             adstock_alpha=0.6,

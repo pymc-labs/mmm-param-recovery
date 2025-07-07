@@ -42,10 +42,10 @@ The module will generate synthetic marketing data with known ground truth parame
 
 ### 3. Geographic Region Management
 - The system must support 1-50 geographic regions
-- The system must implement hierarchical structure with shared parameters across regions
+- The system must implement regional data generation with unique seeds for reproducibility
 - The system must allow different baseline sales rates per region
 - The system must support different channel effectiveness per region
-- The system must maintain channel behavior similarity between regions while allowing for regional variations
+- The system must allow channel behavior similarity between regions while allowing for regional variations
 
 ### 4. Adstock and Saturation Functions
 - The system must default to geometric adstock transformation
@@ -179,16 +179,12 @@ The resulting dataframe must follow a specific schema structure:
 
 1. **Advanced Channel Patterns**: Should the module support more complex channel patterns like step functions, cyclical patterns, or event-driven spikes?
 
-2. **Correlation Structures**: How should the module handle correlation between different channels or regions beyond the basic hierarchical structure?
+2. **External Factors**: Should the module include generation of external factors (economy, weather, competitor activity) that affect sales?
 
-3. **External Factors**: Should the module include generation of external factors (economy, weather, competitor activity) that affect sales?
+3. **Seasonality Complexity**: Should the module support multiple seasonal patterns (weekly, monthly, quarterly) beyond the basic annual seasonality?
 
-4. **Seasonality Complexity**: Should the module support multiple seasonal patterns (weekly, monthly, quarterly) beyond the basic annual seasonality?
+4. **Validation Metrics**: What specific validation metrics should be included to assess the quality of generated datasets?
 
-5. **Validation Metrics**: What specific validation metrics should be included to assess the quality of generated datasets?
+5. **Export Formats**: Should the module support additional export formats beyond pandas DataFrames (e.g., CSV, Parquet, JSON)?
 
-6. **Export Formats**: Should the module support additional export formats beyond pandas DataFrames (e.g., CSV, Parquet, JSON)?
-
-7. **Configuration Persistence**: Should the module support saving and loading configuration objects for reproducible research workflows?
-
-8. **Parallel Processing**: Should the module support parallel generation of multiple datasets for Monte Carlo studies? 
+6. **Configuration Persistence**: Should the module support saving and loading configuration objects for reproducible research workflows?

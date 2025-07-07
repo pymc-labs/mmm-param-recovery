@@ -32,7 +32,7 @@ class ChannelConfig:
     ramp_up_periods: int = 4  # Number of periods to ramp up to full spend
     
     # On/off parameters
-    activation_probability: float = 0.8  # Probability of being active in any period
+    activation_probability: float = 0.4  # Probability of being active in any period
     min_active_periods: int = 2  # Minimum consecutive active periods
     max_active_periods: int = 8  # Maximum consecutive active periods
     
@@ -42,9 +42,6 @@ class ChannelConfig:
     # Effectiveness parameters
     base_effectiveness: float = 0.5  # Base effectiveness multiplier
     effectiveness_trend: float = 0.0  # Trend in effectiveness over time
-    
-    # Regional variation
-    regional_effectiveness_variation: float = 0.2  # Std dev of regional effectiveness variation
     
     def __post_init__(self):
         """Validate configuration parameters."""
@@ -58,8 +55,6 @@ class ChannelConfig:
             raise ValueError("activation_probability must be between 0 and 1")
         if self.base_effectiveness < 0:
             raise ValueError("base_effectiveness must be non-negative")
-        if self.regional_effectiveness_variation < 0:
-            raise ValueError("regional_effectiveness_variation must be non-negative")
         if "_" in self.name:
             raise ValueError("channel name must not contain underscores (use hyphens instead)")
 
@@ -116,37 +111,23 @@ class RegionConfig:
     seasonal_amplitude: float = 0.2  # Amplitude of seasonal variation in sales
     seasonal_phase: float = 0.0  # Phase shift in radians
     
-    # Regional variation parameters
-    regional_sales_variation: float = 0.3  # Std dev of regional sales rate variation
-    regional_trend_variation: float = 0.01  # Std dev of regional trend variation
-    
-    # Region similarity controls
-    region_correlation: float = 0.7  # Correlation between regions for similar behavior
-    channel_effectiveness_correlation: float = 0.8  # Correlation of channel effectiveness across regions
-    
     def __post_init__(self):
         """Validate region configuration."""
-        if self.n_regions < 1 or self.n_regions > 50:
-            raise ValueError("n_regions must be between 1 and 50")
+        if self.n_regions < 1:
+            raise ValueError("n_regions must be at least 1")
         if self.base_sales_rate <= 0:
             raise ValueError("base_sales_rate must be positive")
         if self.sales_volatility < 0:
             raise ValueError("sales_volatility must be non-negative")
         if not 0 <= self.seasonal_amplitude <= 1:
             raise ValueError("seasonal_amplitude must be between 0 and 1")
-        if self.regional_sales_variation < 0:
-            raise ValueError("regional_sales_variation must be non-negative")
-        if not -1 <= self.region_correlation <= 1:
-            raise ValueError("region_correlation must be between -1 and 1")
-        if not -1 <= self.channel_effectiveness_correlation <= 1:
-            raise ValueError("channel_effectiveness_correlation must be between -1 and 1")
         
         # Generate region names if not provided
         if self.region_names is None:
             if self.n_regions == 1:
-                self.region_names = ["All"]
+                self.region_names = ["geo_all"]
             else:
-                self.region_names = [f"Region_{i+1}" for i in range(self.n_regions)]
+                self.region_names = [f"geo_{i+1}" for i in range(self.n_regions)]
         elif len(self.region_names) != self.n_regions:
             raise ValueError("region_names length must match n_regions")
 
