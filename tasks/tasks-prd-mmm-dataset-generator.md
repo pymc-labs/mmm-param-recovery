@@ -45,29 +45,29 @@ Based on the Product Requirements Document: MMM Dataset Generator
   - [x] 1.7 Implement output schema compliance with required column structure (`date`, `geo`, `y`, `x1-*`, `x2-*`, ..., `c1-*`, `c2-*`, ...)
   - [x] 1.8 Add data integrity validation ensuring unique date-geo combinations and no missing values
 
-- [ ] 2.0 Channel Pattern Generation System
-  - [ ] 2.1 Implement linear trend channel pattern with configurable parameters look for example in [data.ipynb]
-  - [ ] 2.2 Implement seasonal channel pattern with annual seasonality look for example in [data.ipynb]
-  - [ ] 2.3 Implement delayed start channel pattern with configurable start time look for example in [data.ipynb]
-  - [ ] 2.4 Implement on/off channel pattern with random activation look for example in [data.ipynb]
-  - [ ] 2.6 Add channel parameter validation and reasonable range checks
+- [x] 2.0 Channel Pattern Generation System
+  - [x] 2.1 Implement linear trend channel pattern with configurable parameters look for example in [data.ipynb]
+  - [x] 2.2 Implement seasonal channel pattern with annual seasonality look for example in [data.ipynb]
+  - [x] 2.3 Implement delayed start channel pattern with configurable start time look for example in [data.ipynb]
+  - [x] 2.4 Implement on/off channel pattern with random activation look for example in [data.ipynb]
+  - [x] 2.6 Add channel parameter validation and reasonable range checks
 
-- [ ] 3.0 Geographic Region Management
-  - [ ] 3.1 Create region configuration system supporting 1-50 regions
-  - [ ] 3.2 Implement hierarchical structure with shared parameter distributions across regions
-  - [ ] 3.3 Add regional baseline sales rate variation system
-  - [ ] 3.4 Implement channel effectiveness variation per region
-  - [ ] 3.5 Create region similarity controls and correlation structures
-  - [ ] 3.7 Implement region-specific parameter validation
+- [ ] 3.0 Adstock and Saturation Transformations
+  - [ ] 3.1 Implement geometric adstock transformation with PyMC Marketing integration
+  - [ ] 3.2 Implement Hill saturation function with configurable parameters
+  - [ ] 3.3 Implement Logistic saturation function with configurable parameters
+  - [ ] 3.4 Create transformation function registry for string-based selection
+  - [ ] 3.5 Add support for allowing different adstock/saturation combinations per channel
+  - [ ] 3.6 Implement transformation parameter validation
+  - [ ] 3.7 Use PyMC MArketing MediaTransforms for applying multiple transforms sequentially
 
-- [ ] 4.0 Adstock and Saturation Transformations
-  - [ ] 4.1 Implement geometric adstock transformation with PyMC Marketing integration
-  - [ ] 4.2 Implement Hill saturation function with configurable parameters
-  - [ ] 4.3 Implement Logistic saturation function with configurable parameters
-  - [ ] 4.4 Create transformation function registry for string-based selection
-  - [ ] 4.5 Add support for allowing different adstock/saturation combinations per channel
-  - [ ] 4.6 Implement transformation parameter validation
-  - [ ] 4.7 Use PyMC MArketing MediaTransforms for applying multiple transforms sequentially
+- [ ] 4.0 Geographic Region Management
+  - [ ] 4.1 Create region configuration system supporting one or more regions
+  - [ ] 4.2 Implement generation of region data with channel parameters drawn from a shared underlying distribution.
+  - [ ] 4.3 Add regional baseline sales rate variation system
+  - [ ] 4.4 Implement channel effectiveness variation per region
+  - [ ] 4.5 Create region similarity controls
+  - [ ] 4.7 Implement region-specific parameter validation
 
 - [ ] 5.0 Ground Truth Calculation and ROAS
   - [ ] 5.1 Implement true parameter value tracking (betas, alphas, kappas, etc.)
