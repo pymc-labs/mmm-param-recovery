@@ -11,14 +11,14 @@ Based on the Product Requirements Document: MMM Dataset Generator
 - `mmm_param_recovery/data_generator/validation.py` - Data validation and quality checks
 - `mmm_param_recovery/data_generator/presets.py` - Default configuration presets for common use cases
 - `mmm_param_recovery/data_generator/channels.py` - Channel pattern generation and configuration (placeholder)
-- `mmm_param_recovery/data_generator/regions.py` - Geographic region management and hierarchical structure (placeholder)
+- `mmm_param_recovery/data_generator/regions.py` - Geographic region management with individual baseline patterns and regional variations
 - `mmm_param_recovery/data_generator/transforms.py` - Adstock and saturation function implementations (placeholder)
 - `mmm_param_recovery/data_generator/ground_truth.py` - Ground truth parameter calculation and ROAS computation (placeholder)
 - `mmm_param_recovery/data_generator/visualization.py` - Plotting functions for data visualization (placeholder)
 - `examples/basic_usage.py` - Basic example script demonstrating the module
 - `examples/notebooks/data_generator_demo.py` - Marimo notebook for interactive demonstration
 - `tests/test_channels.py` - Unit tests for channel generation
-- `tests/test_regions.py` - Unit tests for region management
+- `tests/test_regions.py` - Unit tests for region management and regional variations
 - `tests/test_transforms.py` - Unit tests for adstock and saturation functions
 - `tests/test_ground_truth.py` - Unit tests for ground truth calculations
 - `tests/test_full_pipeline.py` - Integration tests for complete data generation
@@ -57,13 +57,13 @@ Based on the Product Requirements Document: MMM Dataset Generator
   - [x] 3.2 Add support for allowing different adstock/saturation combinations per channel
   - [x] 3.3 Implement tests for transforms.py
 
-- [ ] 4.0 Geographic Region Management
-  - [ ] 4.1 Create region configuration system supporting one or more regions
-  - [ ] 4.2 Implement generation of region data with channel parameters drawn from a shared underlying distribution.
-  - [ ] 4.3 Add regional baseline sales rate variation system
-  - [ ] 4.4 Implement channel effectiveness variation per region
-  - [ ] 4.5 Create region similarity controls
-  - [ ] 4.7 Implement region-specific parameter validation
+- [x] 4.0 Geographic Region Management
+  - [x] 4.1 Create region configuration system supporting one or more regions
+  - [x] 4.2 Implement individual baseline sales, trend, and seasonal patterns for each region
+  - [x] 4.3 Implement channel parameter variation through small scaling factors per region
+  - [x] 4.4 Implement slight variation in transformation parameters (adstock/saturation) per region
+  - [x] 4.5 Add region-specific seed management for reproducibility
+  - [x] 4.6 Implement region-specific parameter validation
 
 - [ ] 5.0 Ground Truth Calculation and ROAS
   - [ ] 5.1 Implement true parameter value tracking (betas, alphas, kappas, etc.)
@@ -85,7 +85,7 @@ Based on the Product Requirements Document: MMM Dataset Generator
 
 - [ ] 7.0 Testing and Documentation
   - [ ] 7.1 Create unit tests for all channel generation functions
-  - [ ] 7.2 Implement unit tests for region management and hierarchical structure
+  - [ ] 7.2 Implement unit tests for region management and regional variations
   - [ ] 7.3 Add unit tests for adstock and saturation transformations
   - [ ] 7.4 Create unit tests for ground truth calculations and ROAS
   - [ ] 7.5 Implement integration tests for complete data generation pipeline

@@ -356,8 +356,8 @@ def validate_output_schema(data: pd.DataFrame, config: MMMDataConfig) -> List[st
         errors.append(f"Missing required columns: {missing_columns}")
     
     # Check channel columns (x1, x2, x3, ...)
-    expected_channel_columns = [f'x{i+1}' for i in range(len(config.channels))]
-    actual_channel_columns = [col for col in data.columns if col.startswith('x') and col[1:].isdigit()]
+    expected_channel_columns = [f'x{i+1}_{channel.name}' if channel.name != "" else f'x{i+1}' for i, channel in enumerate(config.channels)]
+    actual_channel_columns = [col for col in data.columns if col.startswith('x')]
     missing_channel_columns = [col for col in expected_channel_columns if col not in actual_channel_columns]
     if missing_channel_columns:
         errors.append(f"Missing channel columns: {missing_channel_columns}")

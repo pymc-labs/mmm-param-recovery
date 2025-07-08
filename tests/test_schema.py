@@ -63,8 +63,8 @@ def test_mmm_schema():
         print("✅ All required columns present")
     
     # Channel columns (x1, x2, ...)
-    expected_channel_columns = [f'x{i+1}' for i in range(len(config.channels))]
-    actual_channel_columns = [col for col in data.columns if col.startswith('x') and col[1:].isdigit()]
+    expected_channel_columns = [f'x{i+1}_{channel.name}' if channel.name != "" else f'x{i+1}' for i, channel in enumerate(config.channels)]
+    actual_channel_columns = [col for col in data.columns if col.startswith('x')]
     missing_channel_columns = [col for col in expected_channel_columns if col not in actual_channel_columns]
     if missing_channel_columns:
         print(f"❌ Missing channel columns: {missing_channel_columns}")

@@ -102,6 +102,12 @@ class RegionConfig:
     seasonal_amplitude: float = 0.2  # Amplitude of seasonal variation in sales
     seasonal_phase: float = 0.0  # Phase shift in radians
     
+    # Regional variation parameters
+    baseline_variation: float = 0.1  # Factor for regional baseline variation (0.1 = ±10%)
+    channel_scale_variation: float = 0.05  # Factor for channel spend scaling variation (0.05 = ±5%)
+    effectiveness_variation: float = 0.08  # Factor for channel effectiveness variation (0.08 = ±8%)
+    transform_variation: float = 0.03  # Factor for transformation parameter variation (0.03 = ±3%)
+    
     def __post_init__(self):
         """Validate region configuration."""
         if self.n_regions < 1:
@@ -112,6 +118,16 @@ class RegionConfig:
             raise ValueError("sales_volatility must be non-negative")
         if not 0 <= self.seasonal_amplitude <= 1:
             raise ValueError("seasonal_amplitude must be between 0 and 1")
+        
+        # Validate variation factors
+        if not 0 <= self.baseline_variation <= 1:
+            raise ValueError("baseline_variation_factor must be between 0 and 1")
+        if not 0 <= self.channel_scale_variation <= 1:
+            raise ValueError("channel_scale_variation must be between 0 and 1")
+        if not 0 <= self.effectiveness_variation <= 1:
+            raise ValueError("effectiveness_variation must be between 0 and 1")
+        if not 0 <= self.transform_variation <= 1:
+            raise ValueError("transform_variation must be between 0 and 1")
         
         # Generate region names if not provided
         if self.region_names is None:
@@ -197,7 +213,11 @@ DEFAULT_CONFIG = MMMDataConfig(
     ],
     regions=RegionConfig(
         n_regions=3,
-        region_names=["geo_a", "geo_b", "geo_c"]
+        region_names=["geo_a", "geo_b", "geo_c"],
+        baseline_variation=0.1,
+        channel_scale_variation=0.05,
+        effectiveness_variation=0.08,
+        transform_variation=0.03
     ),
     transforms=TransformConfig(
         adstock_fun="geometric_adstock",

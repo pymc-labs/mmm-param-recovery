@@ -42,16 +42,17 @@ The module will generate synthetic marketing data with known ground truth parame
 
 ### 3. Geographic Region Management
 - The system must support 1-50 geographic regions
-- The system must implement regional data generation with unique seeds for reproducibility
-- The system must allow different baseline sales rates per region
-- The system must support different channel effectiveness per region
-- The system must allow channel behavior similarity between regions while allowing for regional variations
+- The system must create individual baseline sales, trend, and seasonal patterns for each region
+- The system must vary channel parameters by applying small scaling factors to base spends and other parameters
+- The system must vary transformation parameters slightly to ensure similar behavior with regional variations
+- The system must maintain reproducibility through proper seed management for each region
 
 ### 4. Adstock and Saturation Functions
 - The system must default to geometric adstock transformation
 - The system must support both Hill and Logistic saturation functions by default
 - The system must allow mixing different adstock/saturation combinations per channel
 - The system must accept string identifiers of adstock/saturation functions corresponding to PyMC Marketing functions
+- The system must support slight regional variations in transformation parameters while maintaining similar behavior patterns
 
 ### 5. Ground Truth Information
 - The system must provide true parameter values (betas, alphas, kappas, etc.) for all channels

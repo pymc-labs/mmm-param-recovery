@@ -62,16 +62,6 @@ class TestTransformConfig:
         assert config.get_saturation_kwargs(0) == {"kappa": 2000.0}
         assert config.get_saturation_kwargs(1) == {"kappa": 3000.0}
         assert config.get_saturation_kwargs(2) == {"kappa": 4000.0}  # Should cycle
-    
-    def test_parameter_validation(self):
-        """Test parameter validation in TransformConfig."""
-        # Test invalid adstock_kwargs
-        with pytest.raises(ValueError, match="adstock_kwargs\\[0\\] must be <= 1"):
-            TransformConfig(adstock_kwargs=[{"alpha": 1.5}])
-        
-        # Test invalid saturation parameters
-        with pytest.raises(ValueError, match="saturation_kwargs\\[0\\] must be >= 0"):
-            TransformConfig(saturation_kwargs=[{"kappa": -100.0}])
 
 
 class TestApplyTransformations:

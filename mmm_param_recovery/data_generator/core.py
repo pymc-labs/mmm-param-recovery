@@ -12,7 +12,7 @@ import warnings
 
 from .config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
 from .channels import generate_channel_spend
-from .regions import generate_regional_baseline
+from .regions import generate_regional_baseline, generate_regional_channel_variations, generate_regional_transform_variations
 from .transforms import apply_transformations
 from .ground_truth import calculate_ground_truth
 from .validation import validate_config, validate_output_schema
@@ -96,11 +96,11 @@ def generate_mmm_dataset(
         # Generate time index
         time_index = _generate_time_index(config)
         
-        # Generate channel spend data
-        spend_data = _generate_channel_spend_data(config, time_index)
-        
-        # Generate regional baseline sales
+        # Generate baseline data for each region first
         baseline_data = _generate_baseline_data(config, time_index)
+        
+        # Generate channel spend data (without geo in column names)
+        spend_data = _generate_channel_spend_data(config, time_index)
         
         # Generate control variables
         control_data = _generate_control_variables(config, time_index)
@@ -110,20 +110,15 @@ def generate_mmm_dataset(
             config, spend_data, time_index
         )
         
-        # Calculate channel contributions and sales
-        contributions_data = _calculate_channel_contributions(
-            config, transformed_data, baseline_data
-        )
-        
         # Combine all data
-        combined_data = _combine_data(
-            config, time_index, spend_data, baseline_data, 
-            control_data, transformed_data, contributions_data
-        )
-        
+        combined_data = pd.concat([spend_data, control_data], axis=1)
+        # Calculate total sales
+        combined_data["y"] = pd.concat([baseline_data, control_data, transformed_data], axis=1).sum(axis=1)
+        combined_data = combined_data.reset_index()
+
         # Calculate ground truth
         ground_truth = calculate_ground_truth(
-            config, spend_data, transformed_data, contributions_data
+            config, spend_data, transformed_data, baseline_data
         )
         
         # Validate output schema
@@ -141,7 +136,6 @@ def generate_mmm_dataset(
         
         # Add optional outputs
         if config.include_raw_data:
-            result['raw_spend'] = spend_data
             result['raw_baseline'] = baseline_data
         
         if config.include_transformed_data:
@@ -170,241 +164,145 @@ def _generate_time_index(config: MMMDataConfig) -> pd.DatetimeIndex:
     return time_index
 
 
-def _generate_channel_spend_data(
-    config: MMMDataConfig, 
-    time_index: pd.DatetimeIndex
-) -> pd.DataFrame:
-    """Generate spend data for all channels across all regions."""
-    spend_data = {}
-    
-    for channel in config.channels:
-        for region_idx, region_name in enumerate(config.regions.region_names): # type: ignore
-            # Generate independent spend pattern for this region
-            # Use region-specific seed for independence
-            region_seed = config.seed + region_idx * 1000 if config.seed is not None else None
-            
-            base_spend = generate_channel_spend(
-                channel, time_index, region_seed
-            )
-            
-            # Add spend noise
-            if region_seed is not None:
-                np.random.seed(region_seed + 500)  # Different seed for noise
-            spend_noise = np.random.normal(
-                0, channel.spend_volatility * base_spend
-            )
-            final_spend = np.maximum(0, base_spend + spend_noise)
-            
-            column_name = f"{channel.name}_{region_name}_spend"
-            spend_data[column_name] = final_spend
-    
-    return pd.DataFrame(spend_data, index=time_index)
-
-
 def _generate_baseline_data(
     config: MMMDataConfig, 
     time_index: pd.DatetimeIndex
 ) -> pd.DataFrame:
     """Generate baseline sales data for all regions."""
-    baseline_data = {}
+    baseline_data = []
     
     for region_idx, region_name in enumerate(config.regions.region_names): # type: ignore
         baseline_sales = generate_regional_baseline(
             config.regions, time_index, region_idx, config.seed
         )
         
-        column_name = f"{region_name}_baseline_sales"
-        baseline_data[column_name] = baseline_sales
+        # Create Series with MultiIndex (time_index, region_name)
+        region_series = pd.Series(
+            baseline_sales, 
+            index=pd.MultiIndex.from_product([time_index, [region_name]], names=['date', 'geo']),
+            name="baseline_sales"
+        )
+        baseline_data.append(region_series)
     
-    return pd.DataFrame(baseline_data, index=time_index)
+    return pd.concat(baseline_data, axis=0)
+
+
+def _generate_channel_spend_data(
+    config: MMMDataConfig, 
+    time_index: pd.DatetimeIndex
+) -> pd.DataFrame:
+    """Generate spend data for all channels across all regions."""
+    # Create a list to store regional DataFrames
+    regional_dataframes = []
+    
+    for region_idx, region_name in enumerate(config.regions.region_names): # type: ignore
+        regional_channels = generate_regional_channel_variations(
+            config.regions, config.channels, region_idx, config.seed
+        )
+        
+        region_data = pd.DataFrame(index=pd.MultiIndex.from_product([time_index, [region_name]], names=['date', 'geo']))
+        
+        for i, channel in enumerate(regional_channels):
+                # Generate independent spend pattern for this region
+                # Use region-specific seed for independence
+                region_seed = config.seed + region_idx * 1000 if config.seed is not None else None
+                
+                base_spend = generate_channel_spend(
+                    channel, time_index, region_seed
+                )
+                
+                # Use consistent x{i+1} format for channel columns
+                column_name = f'x{i+1}_{channel.name}' if channel.name != "" else f'x{i+1}'
+                region_data[column_name] = base_spend
+            
+        
+        regional_dataframes.append(region_data)
+    
+    # Concatenate all regional DataFrames on axis=0
+    spend_data = pd.concat(regional_dataframes, axis=0)
+    
+    return spend_data
+
 
 
 def _generate_control_variables(
     config: MMMDataConfig, 
     time_index: pd.DatetimeIndex
 ) -> pd.DataFrame:
-    """Generate control variables data."""
+    """Placeholder function for generating control variables data.
+    
+    Returns a DataFrame with multi-index (time_index, geo region) containing
+    columns of zeros for each control variable.
+    """
+    # Create multi-index for all regions and time periods
+    multi_index = pd.MultiIndex.from_product(
+        [time_index, config.regions.region_names], 
+        names=['date', 'geo']
+    )
+    
+    # Create DataFrame with zeros for each control variable
     control_data = {}
-    
-    for var_name, var_config in config.control_variables.items():
-        base_value = var_config['base_value']
-        volatility = var_config['volatility']
-        
-        # Generate time series with trend and noise
-        trend = var_config.get('trend', 0.0)
-        seasonal_amplitude = var_config.get('seasonal_amplitude', 0.0)
-        
-        # Base trend
-        time_factor = np.arange(len(time_index))
-        trend_component = base_value * (1 + trend * time_factor / len(time_index))
-        
-        # Seasonal component
-        seasonal_component = 0
-        if seasonal_amplitude > 0:
-            seasonal_component = (
-                seasonal_amplitude * base_value * 
-                np.sin(2 * np.pi * time_factor / 52)  # Annual seasonality
-            )
-        
-        # Noise component
-        noise = np.random.normal(0, volatility * base_value, len(time_index))
-        
-        # Combine components
-        control_values = trend_component + seasonal_component + noise
-        control_data[var_name] = np.maximum(0, control_values)
-    
-    return pd.DataFrame(control_data, index=time_index)
+    for idx, var_name in enumerate(config.control_variables.keys()):
+        control_data[f"c{idx+1}"] = 0.0
+
+    return pd.DataFrame(control_data, index=multi_index)
 
 
 def _apply_transformations_to_data(
     config: MMMDataConfig,
     spend_data: pd.DataFrame,
-    time_index: pd.DatetimeIndex
+    time_index: pd.DatetimeIndex,
 ) -> pd.DataFrame:
     """Apply adstock and saturation transformations to spend data."""
-    transformed_data = {}
+    # Create a list to store regional DataFrames
+    regional_dataframes = []
     
-    for column in spend_data.columns:
-        channel_name = column.split('_')[0]  # Extract channel name from column
-        
-        # Find channel config and index
-        channel_idx = None
-        channel_config = None
-        for i, ch in enumerate(config.channels):
-            if ch.name == channel_name:
-                channel_idx = i
-                channel_config = ch
-                break
-        
-        if channel_config is None or channel_idx is None:
-            warnings.warn(f"No config found for channel {channel_name}")
-            transformed_data[column.replace('_spend', '_transformed')] = spend_data[column]
-            continue
-        
-        # Apply transformations with channel index
-        transformed_spend = apply_transformations(
-            spend_data[column].values, # type: ignore
+    for region_idx, region_name in enumerate(config.regions.region_names): # type: ignore
+        # Get regional transform configuration
+        regional_transform = generate_regional_transform_variations(
+            config.regions,
             config.transforms,
-            channel_config,
-            channel_idx=channel_idx
+            region_idx,
+            config.seed
         )
         
-        transformed_column = column.replace('_spend', '_transformed')
-        transformed_data[transformed_column] = transformed_spend
-    
-    return pd.DataFrame(transformed_data, index=time_index)
-
-
-def _calculate_channel_contributions(
-    config: MMMDataConfig,
-    transformed_data: pd.DataFrame,
-    baseline_data: pd.DataFrame
-) -> pd.DataFrame:
-    """Calculate channel contributions to sales."""
-    contributions_data = {}
-    
-    for region_name in config.regions.region_names: # type: ignore
-        region_contributions = {}
+        # Get regional channels configuration
+        regional_channels = generate_regional_channel_variations(
+            config.regions, config.channels, region_idx, config.seed
+        )
         
-        for channel in config.channels:
-            # Get transformed spend for this channel and region
-            transformed_column = f"{channel.name}_{region_name}_transformed"
-            if transformed_column not in transformed_data.columns:
-                continue
-            
-            transformed_spend = transformed_data[transformed_column]
-            
-            # Calculate effectiveness for this channel and region
-            effectiveness = _calculate_channel_effectiveness(
-                config, channel, region_name
-            )
-            
-            # Calculate contribution
-            contribution = transformed_spend * effectiveness
-            region_contributions[f"{channel.name}_{region_name}_contribution"] = contribution
+        # Get spend data for this region
+        region_mask = spend_data.index.get_level_values('geo') == region_name
+        region_spend_data = spend_data[region_mask].copy()
         
-        # Add total contribution column
-        if region_contributions:
-            total_contribution = sum(region_contributions.values())
-            region_contributions[f"{region_name}_total_contribution"] = total_contribution
+        # Create DataFrame for this region with same structure
+        region_data = pd.DataFrame(index=pd.MultiIndex.from_product([time_index, [region_name]], names=['date', 'geo']))
         
-        contributions_data.update(region_contributions)
+        # Apply transformations to each channel
+        for i, channel in enumerate(regional_channels):
+            # Find the corresponding column in the spend data
+            # Use consistent x{i+1} format for channel columns
+            column_name = f'x{i+1}_{channel.name}' if channel.name != "" else f'x{i+1}'
+            
+            if column_name in region_spend_data.columns:
+                # Apply transformations with channel index and regional transform config
+                max_spend = region_spend_data[column_name].max()
+                transformed_spend = apply_transformations(
+                    region_spend_data[column_name].values / max_spend,
+                    regional_transform,
+                    channel,
+                    channel_idx=i
+                )
+                
+                # Store in the region DataFrame with consistent column naming
+                region_data["contribution_" + column_name] = transformed_spend * config.regions.base_sales_rate
+            else:
+                # If column not found, use zeros
+                region_data[f"contribution_{column_name}"] = 0.0
+        
+        regional_dataframes.append(region_data)
     
-    return pd.DataFrame(contributions_data, index=transformed_data.index)
-
-
-def _calculate_channel_effectiveness(
-    config: MMMDataConfig,
-    channel: ChannelConfig,
-    region_name: str
-) -> float:
-    """Calculate channel effectiveness for a specific region."""
-    # Base effectiveness
-    effectiveness = channel.base_effectiveness
+    # Concatenate all regional DataFrames on axis=0
+    transformed_data = pd.concat(regional_dataframes, axis=0)
     
-    # Add trend over time
-    if channel.effectiveness_trend != 0:
-        # This would need to be calculated per time period
-        # For now, use average trend
-        effectiveness *= (1 + channel.effectiveness_trend / 2)
-    
-    return effectiveness
-
-
-def _combine_data(
-    config: MMMDataConfig,
-    time_index: pd.DatetimeIndex,
-    spend_data: pd.DataFrame,
-    baseline_data: pd.DataFrame,
-    control_data: pd.DataFrame,
-    transformed_data: pd.DataFrame,
-    contributions_data: pd.DataFrame
-) -> pd.DataFrame:
-    """Combine all data into final dataset with required schema."""
-    # Create list to store all rows
-    all_rows = []
-    
-    # Generate all date-geo combinations
-    for date in time_index:
-        for region_name in config.regions.region_names: # type: ignore
-            row_data = {'date': date, 'geo': region_name}
-            
-            # Add channel spend data (x1, x2, x3, ...)
-            for i, channel in enumerate(config.channels):
-                spend_col = f"{channel.name}_{region_name}_spend"
-                if spend_col in spend_data.columns:
-                    # Use consistent x{i+1} format for channel columns
-                    column_name = f'x{i+1}'
-                    row_data[column_name] = spend_data.loc[date, spend_col] # type: ignore
-                else:
-                    column_name = f'x{i+1}'
-                    row_data[column_name] = 0.0
-            
-            # Add control variables (c1, c2, c3, ...)
-            for i, (var_name, var_config) in enumerate(config.control_variables.items()):
-                if var_name in control_data.columns:
-                    row_data[f'c{i+1}'] = control_data.loc[date, var_name] # type: ignore
-                else:
-                    row_data[f'c{i+1}'] = 0.0
-            
-            # Calculate total sales (y)
-            baseline_col = f"{region_name}_baseline_sales"
-            total_contribution_col = f"{region_name}_total_contribution"
-            
-            baseline_sales = 0.0
-            if baseline_col in baseline_data.columns:
-                baseline_sales = baseline_data.loc[date, baseline_col] # type: ignore
-            
-            total_contribution = 0.0
-            if total_contribution_col in contributions_data.columns:
-                total_contribution = contributions_data.loc[date, total_contribution_col] # type: ignore
-            
-            row_data['y'] = baseline_sales + total_contribution
-            
-            all_rows.append(row_data)
-    
-    # Create DataFrame and sort by date, then geo
-    combined_data = pd.DataFrame(all_rows)
-    combined_data = combined_data.sort_values(['date', 'geo']).reset_index(drop=True)
-    
-    return combined_data 
+    return transformed_data
