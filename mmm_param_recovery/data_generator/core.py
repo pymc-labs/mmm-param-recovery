@@ -7,14 +7,14 @@ creating synthetic MMM datasets with known ground truth parameters.
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 import warnings
 
 from .config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
 from .channels import generate_channel_spend
 from .regions import generate_regional_baseline, generate_regional_channel_variations, generate_regional_transform_variations
 from .transforms import apply_transformations
-from .ground_truth import calculate_ground_truth
+from .ground_truth import calculate_roas_values, calculate_attribution_percentages
 from .validation import validate_config, validate_output_schema
 
 
@@ -105,21 +105,30 @@ def generate_mmm_dataset(
         # Generate control variables
         control_data = _generate_control_variables(config, time_index)
         
-        # Apply transformations to spend data
-        transformed_data = _apply_transformations_to_data(
+        # Apply transformations to spend data and track parameters
+        transformed_data, transformation_params = _apply_transformations_to_data(
             config, spend_data, time_index
         )
         
         # Combine all data
         combined_data = pd.concat([spend_data, control_data], axis=1)
-        # Calculate total sales
-        combined_data["y"] = pd.concat([baseline_data, control_data, transformed_data], axis=1).sum(axis=1)
+        
+        # Calculate total sales using baseline_sales column
+        combined_data["y"] = baseline_data["baseline_sales"] + control_data.sum(axis=1) + transformed_data.sum(axis=1)
         combined_data = combined_data.reset_index()
 
-        # Calculate ground truth
-        ground_truth = calculate_ground_truth(
-            config, spend_data, transformed_data, baseline_data
-        )
+        # Calculate ground truth metrics
+        roas_values = calculate_roas_values(spend_data, transformed_data, config)
+        attribution_percentages = calculate_attribution_percentages(transformed_data, config)
+        
+        # Create ground truth summary
+        ground_truth = {
+            'transformation_parameters': transformation_params,
+            'baseline_components': baseline_data,
+            'roas_values': roas_values,
+            'attribution_percentages': attribution_percentages,
+            'transformed_spend': transformed_data
+        }
         
         # Validate output schema
         schema_errors = validate_output_schema(combined_data, config)
@@ -133,14 +142,7 @@ def generate_mmm_dataset(
             'ground_truth': ground_truth,
             'config': config
         }
-        
-        # Add optional outputs
-        if config.include_raw_data:
-            result['raw_baseline'] = baseline_data
-        
-        if config.include_transformed_data:
-            result['transformed_spend'] = transformed_data
-        
+            
         return result
         
     except Exception as e:
@@ -168,21 +170,25 @@ def _generate_baseline_data(
     config: MMMDataConfig, 
     time_index: pd.DatetimeIndex
 ) -> pd.DataFrame:
-    """Generate baseline sales data for all regions."""
+    """Generate baseline sales data for all regions with separate components."""
     baseline_data = []
     
     for region_idx, region_name in enumerate(config.regions.region_names): # type: ignore
-        baseline_sales = generate_regional_baseline(
+        baseline_components = generate_regional_baseline(
             config.regions, time_index, region_idx, config.seed
         )
         
-        # Create Series with MultiIndex (time_index, region_name)
-        region_series = pd.Series(
-            baseline_sales, 
-            index=pd.MultiIndex.from_product([time_index, [region_name]], names=['date', 'geo']),
-            name="baseline_sales"
+        # Create DataFrame with separate columns for each component
+        region_data = pd.DataFrame(
+            {
+                'base_sales': baseline_components['base_sales'],
+                'trend': baseline_components['trend'],
+                'seasonal': baseline_components['seasonal'],
+                'baseline_sales': baseline_components['total']
+            },
+            index=pd.MultiIndex.from_product([time_index, [region_name]], names=['date', 'geo'])
         )
-        baseline_data.append(region_series)
+        baseline_data.append(region_data)
     
     return pd.concat(baseline_data, axis=0)
 
@@ -224,7 +230,6 @@ def _generate_channel_spend_data(
     return spend_data
 
 
-
 def _generate_control_variables(
     config: MMMDataConfig, 
     time_index: pd.DatetimeIndex
@@ -252,10 +257,13 @@ def _apply_transformations_to_data(
     config: MMMDataConfig,
     spend_data: pd.DataFrame,
     time_index: pd.DatetimeIndex,
-) -> pd.DataFrame:
-    """Apply adstock and saturation transformations to spend data."""
+) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    """Apply adstock and saturation transformations to spend data and track parameters."""
     # Create a list to store regional DataFrames
     regional_dataframes = []
+    transformation_params = {
+        'channels': {},
+    }
     
     for region_idx, region_name in enumerate(config.regions.region_names): # type: ignore
         # Get regional transform configuration
@@ -278,6 +286,7 @@ def _apply_transformations_to_data(
         # Create DataFrame for this region with same structure
         region_data = pd.DataFrame(index=pd.MultiIndex.from_product([time_index, [region_name]], names=['date', 'geo']))
         
+        
         # Apply transformations to each channel
         for i, channel in enumerate(regional_channels):
             # Find the corresponding column in the spend data
@@ -287,7 +296,7 @@ def _apply_transformations_to_data(
             if column_name in region_spend_data.columns:
                 # Apply transformations with channel index and regional transform config
                 max_spend = region_spend_data[column_name].max()
-                transformed_spend = apply_transformations(
+                transformed_spend, channel_params = apply_transformations(
                     region_spend_data[column_name].values / max_spend,
                     regional_transform,
                     channel,
@@ -296,6 +305,11 @@ def _apply_transformations_to_data(
                 
                 # Store in the region DataFrame with consistent column naming
                 region_data["contribution_" + column_name] = transformed_spend * config.regions.base_sales_rate
+                
+                # Track channel parameters
+                if channel.name not in transformation_params['channels']:
+                    transformation_params['channels'][channel.name] = {}
+                transformation_params['channels'][channel.name][region_name] = channel_params
             else:
                 # If column not found, use zeros
                 region_data[f"contribution_{column_name}"] = 0.0
@@ -305,4 +319,4 @@ def _apply_transformations_to_data(
     # Concatenate all regional DataFrames on axis=0
     transformed_data = pd.concat(regional_dataframes, axis=0)
     
-    return transformed_data
+    return transformed_data, transformation_params

@@ -37,7 +37,7 @@ from .visualization import (
 )
 
 # Ground truth utilities
-from .ground_truth import calculate_ground_truth
+from .ground_truth import calculate_roas_values, calculate_attribution_percentages
 
 __all__ = [
     # Main function
@@ -73,5 +73,6 @@ __all__ = [
     "plot_data_quality",
     
     # Ground truth
-    "calculate_ground_truth",
+    "calculate_roas_values",
+    "calculate_attribution_percentages",
 ] 

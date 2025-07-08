@@ -6,7 +6,7 @@ using PyMC Marketing's transformers module.
 """
 
 import numpy as np
-from typing import Optional, Callable, Any
+from typing import Optional, Callable, Any, Tuple, Dict
 from pytensor.tensor.variable import TensorVariable
 from pymc_marketing.mmm import transformers
 from .config import TransformConfig, ChannelConfig
@@ -42,7 +42,7 @@ def apply_transformations(
     transforms: TransformConfig,
     channel_config: Optional[ChannelConfig] = None,
     channel_idx: int = 0
-) -> np.ndarray:
+) -> Tuple[np.ndarray, Dict[str, Any]]:
     """
     Apply adstock and saturation transformations to spend data.
     
@@ -59,11 +59,17 @@ def apply_transformations(
         
     Returns
     -------
-    np.ndarray
-        Transformed spend data
+    Tuple[np.ndarray, Dict[str, Any]]
+        Transformed spend data and transformation parameters used
     """
     # Start with original data
     transformed_data = spend_data.copy()
+    transform_params = {
+        'adstock_function': None,
+        'adstock_params': {},
+        'saturation_function': None,
+        'saturation_params': {}
+    }
     
     # Apply adstock transformation
     if isinstance(transforms.adstock_fun, list):
@@ -72,13 +78,15 @@ def apply_transformations(
         adstock_fun = transforms.adstock_fun
 
     if adstock_fun and adstock_fun != "none":
+        adstock_kwargs = transforms.get_adstock_kwargs(channel_idx)
         transformed_data = apply_transform(
             transformed_data,
             getattr(transformers, adstock_fun),
-            **transforms.get_adstock_kwargs(channel_idx) # type: ignore
+            **adstock_kwargs
         )
+        transform_params['adstock_function'] = adstock_fun
+        transform_params['adstock_params'] = adstock_kwargs
 
-    
     # Apply saturation transformation
     if isinstance(transforms.saturation_fun, list):
         saturation_fun = transforms.saturation_fun[channel_idx % len(transforms.saturation_fun)]
@@ -86,11 +94,13 @@ def apply_transformations(
         saturation_fun = transforms.saturation_fun
 
     if saturation_fun and saturation_fun != "none":
+        saturation_kwargs = transforms.get_saturation_kwargs(channel_idx)
         transformed_data = apply_transform(
             transformed_data,
             getattr(transformers, saturation_fun),
-            **transforms.get_saturation_kwargs(channel_idx) # type: ignore
+            **saturation_kwargs
         )
+        transform_params['saturation_function'] = saturation_fun
+        transform_params['saturation_params'] = saturation_kwargs
 
-    
-    return transformed_data 
+    return transformed_data, transform_params 

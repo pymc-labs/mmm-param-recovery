@@ -78,7 +78,7 @@ class TestApplyTransformations:
         
         result = apply_transformations(spend_data, config)
         assert result is not None
-        assert len(result) == len(spend_data)
+        assert len(result[0]) == len(spend_data)
     
     def test_hill_saturation_transformation(self):
         """Test Hill saturation transformation."""
@@ -90,7 +90,7 @@ class TestApplyTransformations:
         
         result = apply_transformations(spend_data, config)
         assert result is not None
-        assert len(result) == len(spend_data)
+        assert len(result[0]) == len(spend_data)
     
     def test_combined_adstock_and_saturation(self):
         """Test combined adstock and saturation transformations."""
@@ -104,7 +104,7 @@ class TestApplyTransformations:
         
         result = apply_transformations(spend_data, config)
         assert result is not None
-        assert len(result) == len(spend_data)
+        assert len(result[0]) == len(spend_data)
     
     def test_per_channel_parameters(self):
         """Test per-channel parameter selection."""
@@ -122,8 +122,8 @@ class TestApplyTransformations:
         
         assert result1 is not None
         assert result2 is not None
-        assert len(result1) == len(spend_data)
-        assert len(result2) == len(spend_data)
+        assert len(result1[0]) == len(spend_data)
+        assert len(result2[0]) == len(spend_data)
 
 
 if __name__ == "__main__":

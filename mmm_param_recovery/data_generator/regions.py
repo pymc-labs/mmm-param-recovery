@@ -17,11 +17,11 @@ def generate_regional_baseline(
     time_index: pd.DatetimeIndex,
     region_idx: int,
     seed: Optional[int] = None
-) -> np.ndarray:
+) -> Dict[str, np.ndarray]:
     """
-    Generate baseline sales for a specific region with individual patterns.
+    Generate baseline sales components for a specific region with individual patterns.
     
-    Creates baseline sales with trend, seasonality, and regional variation.
+    Creates separate components for base sales, trend, and seasonal components.
     
     Parameters
     ----------
@@ -36,8 +36,12 @@ def generate_regional_baseline(
         
     Returns
     -------
-    np.ndarray
-        Baseline sales values for each time period
+    Dict[str, np.ndarray]
+        Dictionary containing:
+        - 'base_sales': Base sales component
+        - 'trend': Trend component
+        - 'seasonal': Seasonal component
+        - 'total': Combined baseline sales values
     """
     if seed is not None:
         np.random.seed(seed + region_idx)  # Different seed per region
@@ -52,18 +56,33 @@ def generate_regional_baseline(
     
     # Create time-based baseline with trend
     time_array = np.arange(n_periods)
-    baseline = regions.base_sales_rate * baseline_variation * (1 + regions.sales_trend * time_array)
     
-    # Add seasonal component
+    # Base sales component
+    base_sales = regions.base_sales_rate * baseline_variation * np.ones(n_periods)
+    
+    # Trend component
+    trend = regions.base_sales_rate * baseline_variation * regions.sales_trend * time_array
+    
+    # Seasonal component
     seasonal_period = 52  # Weekly data, annual seasonality
-    seasonal_component = regions.seasonal_amplitude * np.sin(2 * np.pi * time_array / seasonal_period)
-    baseline *= (1 + seasonal_component)
+    seasonal = regions.base_sales_rate * baseline_variation * regions.seasonal_amplitude * np.sin(2 * np.pi * time_array / seasonal_period)
+    
+    # Combine components
+    total = base_sales + trend + seasonal
     
     # Add noise
     noise = np.random.normal(0, regions.sales_volatility, n_periods)
-    baseline *= (1 + noise)
+    total *= (1 + noise)
     
-    return np.clip(baseline, 0, None)  # Ensure non-negative
+    # Ensure non-negative
+    total = np.clip(total, 0, None)
+    
+    return {
+        'base_sales': base_sales,
+        'trend': trend,
+        'seasonal': seasonal,
+        'total': total
+    }
 
 
 def generate_regional_channel_variations(

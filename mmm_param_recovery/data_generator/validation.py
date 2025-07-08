@@ -248,13 +248,13 @@ def check_data_quality(data: pd.DataFrame, config: MMMDataConfig) -> Dict[str, A
 
 def validate_ground_truth(ground_truth: Dict[str, Any], config: MMMDataConfig) -> List[str]:
     """
-    Validate ground truth parameters for consistency.
+    Validate ground truth parameters for consistency and completeness.
     
     Parameters
     ----------
     ground_truth : Dict[str, Any]
         Ground truth parameters
-    config : MMMConfig
+    config : MMMDataConfig
         Configuration used for generation
         
     Returns
@@ -265,25 +265,219 @@ def validate_ground_truth(ground_truth: Dict[str, Any], config: MMMDataConfig) -
     issues = []
     
     # Check that all expected keys are present
-    expected_keys = ['parameters', 'contributions', 'roas', 'attribution']
+    expected_keys = ['transformation_parameters', 'baseline_components', 'roas_values', 'attribution_percentages', 'transformed_spend']
     for key in expected_keys:
         if key not in ground_truth:
             issues.append(f"Missing ground truth key: {key}")
     
-    # Check parameter consistency
-    if 'parameters' in ground_truth:
-        params = ground_truth['parameters']
+    # Validate transformation parameters
+    if 'transformation_parameters' in ground_truth:
+        transform_params = ground_truth['transformation_parameters']
+        issues.extend(_validate_transformation_parameters(transform_params, config))
+    
+    # Validate baseline components
+    if 'baseline_components' in ground_truth:
+        baseline_data = ground_truth['baseline_components']
+        issues.extend(_validate_baseline_components(baseline_data, config))
+    
+    # Validate ROAS values
+    if 'roas_values' in ground_truth:
+        roas_values = ground_truth['roas_values']
+        issues.extend(_validate_roas_values(roas_values, config))
+    
+    # Validate attribution percentages
+    if 'attribution_percentages' in ground_truth:
+        attribution_values = ground_truth['attribution_percentages']
+        issues.extend(_validate_attribution_percentages(attribution_values, config))
+    
+    # Validate transformed spend data
+    if 'transformed_spend' in ground_truth:
+        transformed_data = ground_truth['transformed_spend']
+        issues.extend(_validate_transformed_spend(transformed_data, config))
+    
+    return issues
+
+
+def _validate_transformation_parameters(transform_params: Dict[str, Any], config: MMMDataConfig) -> List[str]:
+    """Validate transformation parameters structure and values."""
+    issues = []
+    
+    if 'channels' not in transform_params:
+        issues.append("Missing 'channels' key in transformation_parameters")
+        return issues
+    
+    channels_params = transform_params['channels']
+    
+    # Check that all channels have parameters
+    for channel in config.channels:
+        if channel.name not in channels_params:
+            issues.append(f"Missing transformation parameters for channel: {channel.name}")
+    
+    # Check that all regions have parameters for each channel
+    for channel_name, channel_regions in channels_params.items():
+        for region_name in config.regions.region_names: # type: ignore
+            if region_name not in channel_regions:
+                issues.append(f"Missing transformation parameters for channel {channel_name} in region {region_name}")
+    
+    # Validate parameter values
+    for channel_name, channel_regions in channels_params.items():
+        for region_name, region_params in channel_regions.items():
+            # Check for required transformation parameters
+            required_params = ['adstock_rate', 'saturation_params']
+            for param in required_params:
+                if param not in region_params:
+                    issues.append(f"Missing {param} for channel {channel_name} in region {region_name}")
+            
+            # Validate adstock rate range
+            if 'adstock_rate' in region_params:
+                adstock_rate = region_params['adstock_rate']
+                if not (0 <= adstock_rate <= 1):
+                    issues.append(f"Invalid adstock_rate {adstock_rate} for channel {channel_name} in region {region_name} (must be between 0 and 1)")
+            
+            # Validate saturation parameters
+            if 'saturation_params' in region_params:
+                sat_params = region_params['saturation_params']
+                if 'half_max_effective' in sat_params:
+                    half_max = sat_params['half_max_effective']
+                    if half_max <= 0:
+                        issues.append(f"Invalid half_max_effective {half_max} for channel {channel_name} in region {region_name} (must be positive)")
+    
+    return issues
+
+
+def _validate_baseline_components(baseline_data: pd.DataFrame, config: MMMDataConfig) -> List[str]:
+    """Validate baseline components structure and values."""
+    issues = []
+    
+    # Check required columns
+    required_columns = ['base_sales', 'trend', 'seasonal', 'baseline_sales']
+    missing_columns = [col for col in required_columns if col not in baseline_data.columns]
+    if missing_columns:
+        issues.append(f"Missing baseline component columns: {missing_columns}")
+    
+    # Check that all regions are present
+    if 'geo' in baseline_data.index.names:
+        expected_regions = set(config.regions.region_names) # type: ignore
+        actual_regions = set(baseline_data.index.get_level_values('geo').unique())
+        missing_regions = expected_regions - actual_regions
+        if missing_regions:
+            issues.append(f"Missing baseline data for regions: {list(missing_regions)}")
+    
+    # Validate baseline sales values
+    if 'baseline_sales' in baseline_data.columns:
+        negative_sales = (baseline_data['baseline_sales'] < 0).sum()
+        if negative_sales > 0:
+            issues.append(f"Found {negative_sales} negative baseline sales values")
+    
+    # Check for infinite values
+    numeric_columns = baseline_data.select_dtypes(include=[np.number]).columns
+    if len(numeric_columns) > 0:
+        infinite_values = np.isinf(baseline_data[numeric_columns]).sum().sum()
+        if infinite_values > 0:
+            issues.append(f"Found {infinite_values} infinite values in baseline components")
+    
+    return issues
+
+
+def _validate_roas_values(roas_values: Dict[str, Dict[str, float]], config: MMMDataConfig) -> List[str]:
+    """Validate ROAS values structure and consistency."""
+    issues = []
+    
+    # Check that all regions are present
+    expected_regions = set(config.regions.region_names) # type: ignore
+    actual_regions = set(roas_values.keys())
+    missing_regions = expected_regions - actual_regions
+    if missing_regions:
+        issues.append(f"Missing ROAS values for regions: {list(missing_regions)}")
+    
+    # Check that all channels are present for each region
+    for region_name, region_roas in roas_values.items():
+        expected_channels = set(channel.name for channel in config.channels)
+        actual_channels = set(region_roas.keys())
+        missing_channels = expected_channels - actual_channels
+        if missing_channels:
+            issues.append(f"Missing ROAS values for channels {list(missing_channels)} in region {region_name}")
+    
+    # Validate ROAS value ranges
+    for region_name, region_roas in roas_values.items():
+        for channel_name, roas_value in region_roas.items():
+            if not isinstance(roas_value, (int, float)):
+                issues.append(f"Invalid ROAS value type for channel {channel_name} in region {region_name}")
+            elif roas_value < 0:
+                issues.append(f"Negative ROAS value {roas_value} for channel {channel_name} in region {region_name}")
+            elif np.isinf(roas_value):
+                issues.append(f"Infinite ROAS value for channel {channel_name} in region {region_name}")
+    
+    return issues
+
+
+def _validate_attribution_percentages(attribution_values: Dict[str, Dict[str, float]], config: MMMDataConfig) -> List[str]:
+    """Validate attribution percentages structure and consistency."""
+    issues = []
+    
+    # Check that all regions are present
+    expected_regions = set(config.regions.region_names) # type: ignore
+    actual_regions = set(attribution_values.keys())
+    missing_regions = expected_regions - actual_regions
+    if missing_regions:
+        issues.append(f"Missing attribution percentages for regions: {list(missing_regions)}")
+    
+    # Check that all channels are present for each region
+    for region_name, region_attribution in attribution_values.items():
+        expected_channels = set(channel.name for channel in config.channels)
+        actual_channels = set(region_attribution.keys())
+        missing_channels = expected_channels - actual_channels
+        if missing_channels:
+            issues.append(f"Missing attribution percentages for channels {list(missing_channels)} in region {region_name}")
+    
+    # Validate attribution percentage ranges and sum
+    for region_name, region_attribution in attribution_values.items():
+        total_attribution = sum(region_attribution.values())
         
-        # Check that all channels have parameters
-        for channel in config.channels:
-            if channel.name not in params:
-                issues.append(f"Missing parameters for channel: {channel.name}")
+        # Check if attribution percentages sum to approximately 100% (allowing for small numerical errors)
+        if not (99.5 <= total_attribution <= 100.5):
+            issues.append(f"Attribution percentages for region {region_name} sum to {total_attribution:.2f}% (should be ~100%)")
         
-        # Check parameter ranges
-        for channel_name, channel_params in params.items():
-            if 'effectiveness' in channel_params:
-                if channel_params['effectiveness'] < 0:
-                    issues.append(f"Negative effectiveness for channel: {channel_name}")
+        # Check individual percentage ranges
+        for channel_name, attribution_pct in region_attribution.items():
+            if not isinstance(attribution_pct, (int, float)):
+                issues.append(f"Invalid attribution percentage type for channel {channel_name} in region {region_name}")
+            elif attribution_pct < 0:
+                issues.append(f"Negative attribution percentage {attribution_pct} for channel {channel_name} in region {region_name}")
+            elif attribution_pct > 100:
+                issues.append(f"Attribution percentage {attribution_pct} > 100% for channel {channel_name} in region {region_name}")
+            elif np.isinf(attribution_pct):
+                issues.append(f"Infinite attribution percentage for channel {channel_name} in region {region_name}")
+    
+    return issues
+
+
+def _validate_transformed_spend(transformed_data: pd.DataFrame, config: MMMDataConfig) -> List[str]:
+    """Validate transformed spend data structure and values."""
+    issues = []
+    
+    # Check that all regions are present
+    if 'geo' in transformed_data.index.names:
+        expected_regions = set(config.regions.region_names) # type: ignore
+        actual_regions = set(transformed_data.index.get_level_values('geo').unique())
+        missing_regions = expected_regions - actual_regions
+        if missing_regions:
+            issues.append(f"Missing transformed spend data for regions: {list(missing_regions)}")
+    
+    # Check for contribution columns
+    contribution_cols = [col for col in transformed_data.columns if col.startswith('contribution_')]
+    if not contribution_cols:
+        issues.append("No contribution columns found in transformed spend data")
+    
+    # Validate contribution values
+    for col in contribution_cols:
+        negative_contributions = (transformed_data[col] < 0).sum()
+        if negative_contributions > 0:
+            issues.append(f"Found {negative_contributions} negative contribution values in column {col}")
+        
+        infinite_contributions = np.isinf(transformed_data[col]).sum()
+        if infinite_contributions > 0:
+            issues.append(f"Found {infinite_contributions} infinite contribution values in column {col}")
     
     return issues
 
@@ -388,10 +582,11 @@ def validate_output_schema(data: pd.DataFrame, config: MMMDataConfig) -> List[st
     if not columns_with_missing.empty:
         errors.append(f"Found missing values in columns: {list(columns_with_missing.index)}")
     
-    # Check for negative values in numeric columns (except control variables which can be negative)
+    # Check for negative values in numeric columns (except control variables and baseline components which can be negative)
     numeric_columns = data.select_dtypes(include=[np.number]).columns
-    # Exclude control variables from negative value check as they can be negative
-    non_control_numeric = [col for col in numeric_columns if not col.startswith('c')]
+    # Exclude control variables and only 'trend' and 'seasonal' from negative value check as they can be negative
+    excluded_columns = ['trend', 'seasonal'] + [col for col in numeric_columns if col.startswith('c')]
+    non_control_numeric = [col for col in numeric_columns if col not in excluded_columns]
     if non_control_numeric:
         negative_values = (data[non_control_numeric] < 0).sum()
         columns_with_negative = negative_values[negative_values > 0]
