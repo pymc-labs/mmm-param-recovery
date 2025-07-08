@@ -75,12 +75,12 @@ Based on the Product Requirements Document: MMM Dataset Generator
   - [x] 5.7 Add ground truth validation and consistency checks across all components
 
 - [ ] 6.0 Visualization and Validation Functions
-  - [ ] 6.1 Implement channel spend pattern visualization functions
-  - [ ] 6.2 Create channel contribution over time plotting utilities
-  - [ ] 6.3 Add ROAS visualization and comparison charts
-  - [ ] 6.4 Implement regional comparison visualization functions
-  - [ ] 6.5 Create data quality validation plots and diagnostics
-  - [ ] 6.7 Implement comprehensive data validation with warning systems
+  - [x] 6.1 Implement channel spend pattern visualization functions
+  - [x] 6.2 Create channel contribution over time plotting utilities
+  - [x] 6.3 Add ROAS visualization and comparison charts
+  - [x] 6.4 Implement regional comparison visualization functions
+  - [x] 6.5 Create data quality validation plots and diagnostics
+  - [x] 6.7 Implement comprehensive data validation with warning systems
 
 - [ ] 7.0 Testing and Documentation
   - [ ] 7.1 Create unit tests for all channel generation functions

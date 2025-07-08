@@ -617,4 +617,241 @@ def validate_output_schema(data: pd.DataFrame, config: MMMDataConfig) -> List[st
         if unexpected_geos:
             errors.append(f"Found unexpected geo values: {list(unexpected_geos)}")
     
-    return errors 
+    return errors
+
+
+def comprehensive_data_validation(
+    data: pd.DataFrame, 
+    ground_truth: Dict[str, Any], 
+    config: MMMDataConfig,
+    raise_on_error: bool = False
+) -> Dict[str, Any]:
+    """
+    Perform comprehensive data validation with warning systems.
+    
+    This function integrates all validation checks and provides a comprehensive
+    report with warnings and suggestions for improvement.
+    
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Generated dataset to validate
+    ground_truth : Dict[str, Any]
+        Ground truth data to validate
+    config : MMMDataConfig
+        Configuration used for generation
+    raise_on_error : bool, default False
+        Whether to raise exceptions on validation errors (False = return warnings)
+        
+    Returns
+    -------
+    Dict[str, Any]
+        Comprehensive validation report with:
+        - 'errors': List of critical errors found
+        - 'warnings': List of warnings that don't prevent usage
+        - 'suggestions': Dictionary of issues to suggested fixes
+        - 'quality_metrics': Data quality metrics
+        - 'overall_score': Overall data quality score (0-100)
+        - 'passed': Boolean indicating if all critical checks passed
+    """
+    validation_report = {
+        'errors': [],
+        'warnings': [],
+        'suggestions': {},
+        'quality_metrics': {},
+        'overall_score': 0,
+        'passed': True
+    }
+    
+    # 1. Schema validation
+    schema_errors = validate_output_schema(data, config)
+    validation_report['errors'].extend(schema_errors)
+    
+    # 2. Ground truth validation
+    ground_truth_errors = validate_ground_truth(ground_truth, config)
+    validation_report['errors'].extend(ground_truth_errors)
+    
+    # 3. Data quality checks
+    quality_report = check_data_quality(data, config)
+    validation_report['warnings'].extend(quality_report['warnings'])
+    validation_report['quality_metrics'] = quality_report['metrics']
+    
+    # 4. Additional comprehensive checks
+    additional_checks = _perform_additional_validation_checks(data, ground_truth, config)
+    validation_report['errors'].extend(additional_checks['errors'])
+    validation_report['warnings'].extend(additional_checks['warnings'])
+    
+    # 5. Calculate overall score
+    validation_report['overall_score'] = _calculate_validation_score(
+        data, validation_report['errors'], validation_report['warnings']
+    )
+    
+    # 6. Generate suggestions
+    all_issues = validation_report['errors'] + validation_report['warnings']
+    validation_report['suggestions'] = suggest_fixes(config, all_issues)
+    
+    # 7. Determine if validation passed
+    validation_report['passed'] = len(validation_report['errors']) == 0
+    
+    # 8. Issue warnings (if not raising exceptions)
+    if not raise_on_error:
+        for warning in validation_report['warnings']:
+            warnings.warn(warning, MMMWarning)
+    
+    # 9. Raise exception if requested and errors found
+    if raise_on_error and validation_report['errors']:
+        error_message = "Data validation failed:\n" + "\n".join(f"- {error}" for error in validation_report['errors'])
+        raise MMMValidationError(error_message)
+    
+    return validation_report
+
+
+def _perform_additional_validation_checks(
+    data: pd.DataFrame, 
+    ground_truth: Dict[str, Any], 
+    config: MMMDataConfig
+) -> Dict[str, List[str]]:
+    """Perform additional validation checks beyond basic schema and quality checks."""
+    errors = []
+    warnings = []
+    
+    # Check for data consistency between data and ground truth
+    if 'roas_values' in ground_truth:
+        roas_values = ground_truth['roas_values']
+        
+        # Check that ROAS values are reasonable (not too high or too low)
+        for region_name, region_roas in roas_values.items():
+            for channel_name, roas_value in region_roas.items():
+                if roas_value > 10:
+                    warnings.append(f"High ROAS value {roas_value:.2f} for {channel_name} in {region_name} (may indicate unrealistic effectiveness)")
+                elif roas_value < 0.1:
+                    warnings.append(f"Low ROAS value {roas_value:.2f} for {channel_name} in {region_name} (may indicate poor effectiveness)")
+    
+    # Check for temporal consistency
+    if 'date' in data.columns:
+        data_sorted = data.sort_values('date')
+        date_gaps = data_sorted['date'].diff().dt.days
+        if date_gaps.max() > 7:
+            warnings.append(f"Large time gap detected: {date_gaps.max()} days between consecutive observations")
+    
+    # Check for regional consistency
+    if 'geo' in data.columns and len(data['geo'].unique()) > 1:
+        # Check if regions have similar sales patterns
+        sales_by_region = data.groupby('geo')['y']
+        sales_means = sales_by_region.mean()
+        sales_cvs = sales_by_region.std() / sales_by_region.mean()
+        
+        if sales_cvs.max() / sales_cvs.min() > 5:
+            warnings.append("High variation in sales volatility across regions")
+        
+        if sales_means.max() / sales_means.min() > 10:
+            warnings.append("High variation in average sales across regions")
+    
+    # Check for channel effectiveness consistency
+    channel_cols = [col for col in data.columns if col.startswith('x') and col[1:].split('_')[0].isdigit()]
+    if channel_cols:
+        # Check for channels with very low or zero spend
+        for col in channel_cols:
+            zero_spend_periods = (data[col] == 0).sum()
+            total_periods = len(data)
+            if zero_spend_periods / total_periods > 0.8:
+                warnings.append(f"Channel {col} has very low activity ({zero_spend_periods}/{total_periods} periods with zero spend)")
+    
+    # Check for seasonality patterns
+    if 'date' in data.columns and len(data) > 52:  # At least a year of data
+        data_sorted = data.sort_values('date')
+        # Simple seasonality check using autocorrelation
+        sales_series = data_sorted['y'].values
+        if len(sales_series) > 12:
+            # Calculate autocorrelation at lag 12 (monthly if weekly data)
+            autocorr = np.corrcoef(sales_series[:-12], sales_series[12:])[0, 1]
+            if abs(autocorr) < 0.1:
+                warnings.append("Low seasonality detected in sales data")
+    
+    return {'errors': errors, 'warnings': warnings}
+
+
+def _calculate_validation_score(
+    data: pd.DataFrame, 
+    errors: List[str], 
+    warnings: List[str]
+) -> int:
+    """Calculate overall validation score (0-100)."""
+    base_score = 100
+    
+    # Deduct points for errors (critical issues)
+    error_penalty = len(errors) * 20
+    base_score -= error_penalty
+    
+    # Deduct points for warnings (minor issues)
+    warning_penalty = len(warnings) * 5
+    base_score -= warning_penalty
+    
+    # Bonus points for good data characteristics
+    if len(data) > 100:
+        base_score += 5  # Bonus for large dataset
+    
+    if data.isnull().sum().sum() == 0:
+        base_score += 5  # Bonus for no missing values
+    
+    if (data['y'] >= 0).all():
+        base_score += 5  # Bonus for no negative sales
+    
+    # Ensure score is within bounds
+    return max(0, min(100, base_score))
+
+
+def print_validation_report(report: Dict[str, Any]) -> None:
+    """
+    Print a formatted validation report.
+    
+    Parameters
+    ----------
+    report : Dict[str, Any]
+        Validation report from comprehensive_data_validation
+    """
+    print("=" * 60)
+    print("MMM DATASET VALIDATION REPORT")
+    print("=" * 60)
+    
+    # Overall status
+    status = "✅ PASSED" if report['passed'] else "❌ FAILED"
+    print(f"Overall Status: {status}")
+    print(f"Quality Score: {report['overall_score']}/100")
+    print()
+    
+    # Errors
+    if report['errors']:
+        print("🚨 CRITICAL ERRORS:")
+        for error in report['errors']:
+            print(f"  • {error}")
+        print()
+    
+    # Warnings
+    if report['warnings']:
+        print("⚠️  WARNINGS:")
+        for warning in report['warnings']:
+            print(f"  • {warning}")
+        print()
+    
+    # Suggestions
+    if report['suggestions']:
+        print("💡 SUGGESTIONS:")
+        for issue, suggestion in report['suggestions'].items():
+            print(f"  • {issue}")
+            print(f"    → {suggestion}")
+        print()
+    
+    # Quality metrics summary
+    if report['quality_metrics']:
+        print("📊 QUALITY METRICS:")
+        for metric_name, metric_value in report['quality_metrics'].items():
+            if isinstance(metric_value, dict):
+                print(f"  {metric_name}:")
+                for sub_metric, value in metric_value.items():
+                    print(f"    {sub_metric}: {value}")
+            else:
+                print(f"  {metric_name}: {metric_value}")
+        print()
+    
+    print("=" * 60) 

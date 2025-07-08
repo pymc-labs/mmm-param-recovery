@@ -16,5 +16,8 @@ mmm_param_recovery/data_generator/transforms.py
 mmm_param_recovery/data_generator/utils.py
 mmm_param_recovery/data_generator/validation.py
 mmm_param_recovery/data_generator/visualization.py
+tests/test_default_config.py
+tests/test_ground_truth.py
 tests/test_presets_validation.py
 tests/test_schema.py
+tests/test_transforms.py
