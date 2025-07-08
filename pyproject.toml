@@ -33,6 +33,7 @@ mmm-param-recovery = { path = ".", editable = true }
 
 [tool.pixi.dependencies]
 pytest = ">=8.4.1,<9"
+ipykernel = ">=6.29.5,<7"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
