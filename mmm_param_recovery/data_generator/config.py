@@ -28,9 +28,10 @@ class ChannelConfig:
     seasonal_phase: float = 0.0  # Phase shift in radians
     
     # Delayed start parameters
-    start_period: Optional[int] = None  # When channel starts (None = immediate)
+    start_period: int = 0  # When channel starts (None = immediate)
     ramp_up_periods: int = 4  # Number of periods to ramp up to full spend
-    
+    end_period: Optional[int] = None  # When channel ends (None = never ends)
+
     # On/off parameters
     activation_probability: float = 0.4  # Probability of being active in any period
     min_active_periods: int = 2  # Minimum consecutive active periods
@@ -49,12 +50,29 @@ class ChannelConfig:
             raise ValueError("base_spend must be non-negative")
         if self.spend_volatility < 0:
             raise ValueError("spend_volatility must be non-negative")
+        # Seasonal parameters
         if not 0 <= self.seasonal_amplitude <= 1:
             raise ValueError("seasonal_amplitude must be between 0 and 1")
+        if not -2 * np.pi <= self.seasonal_phase <= 2 * np.pi:
+            raise ValueError("seasonal_phase should be between -2π and 2π radians")
+        # Delayed start parameters
+        if self.start_period < 0:
+            raise ValueError("start_period must be non-negative")
+        if self.ramp_up_periods < 0:
+            raise ValueError("ramp_up_periods must be non-negative")
+        if self.end_period is not None and self.end_period < self.start_period:
+            raise ValueError("end_period must not be before start_period")
+        # On/off parameters
         if self.activation_probability < 0 or self.activation_probability > 1:
             raise ValueError("activation_probability must be between 0 and 1")
+        if self.min_active_periods < 1:
+            raise ValueError("min_active_periods must be at least 1")
+        if self.max_active_periods < self.min_active_periods:
+            raise ValueError("max_active_periods must be >= min_active_periods")
+        # Effectiveness parameters
         if self.base_effectiveness < 0:
             raise ValueError("base_effectiveness must be non-negative")
+        # Name validation
         if "_" in self.name:
             raise ValueError("channel name must not contain underscores (use hyphens instead)")
 
@@ -140,6 +158,87 @@ class RegionConfig:
 
 
 @dataclass
+class ControlConfig(ChannelConfig):
+    """Configuration for a control variable."""
+    # Control variable specific attributes
+    base_effect: float = 10.0
+    effect_volatility: float = 1.0
+    effect_trend: float = 0.1
+    
+    # Regional variation parameters (similar to channels)
+    regional_effect_variation: float = 0.05  # Factor for regional effect variation (0.05 = ±5%)
+    
+    # Override defaults for control variables
+    pattern: Literal["linear_trend", "seasonal", "delayed_start", "on_off", "custom"] = "on_off"
+    
+    @classmethod
+    def from_channel_config(cls, channel_config: ChannelConfig) -> 'ControlConfig':
+        """
+        Create a ControlConfig from a ChannelConfig.
+        
+        This method maps ChannelConfig attributes to ControlConfig attributes,
+        using the channel's spend parameters as the control's effect parameters.
+        
+        Parameters
+        ----------
+        channel_config : ChannelConfig
+            The channel configuration to convert
+            
+        Returns
+        -------
+        ControlConfig
+            A new control configuration based on the channel configuration
+        """
+        return cls(
+            name=channel_config.name,
+            pattern=channel_config.pattern,
+            base_effect=channel_config.base_spend,
+            effect_volatility=channel_config.spend_volatility,
+            effect_trend=channel_config.spend_trend,
+            seasonal_amplitude=channel_config.seasonal_amplitude,
+            seasonal_phase=channel_config.seasonal_phase,
+            start_period=channel_config.start_period,
+            ramp_up_periods=channel_config.ramp_up_periods,
+            end_period=channel_config.end_period,
+            activation_probability=channel_config.activation_probability,
+            min_active_periods=channel_config.min_active_periods,
+            max_active_periods=channel_config.max_active_periods,
+            custom_pattern_func=channel_config.custom_pattern_func,
+            base_effectiveness=channel_config.base_effectiveness,
+            effectiveness_trend=channel_config.effectiveness_trend
+        )
+    
+    def __post_init__(self):
+        """Map effect attributes to spend attributes and validate."""
+        # Map effect attributes to spend attributes
+        self.base_spend = self.base_effect
+        self.spend_volatility = self.effect_volatility
+        self.spend_trend = self.effect_trend
+        
+        if self.spend_volatility < 0:
+            raise ValueError("effect_volatility must be non-negative")
+        # Seasonal parameters
+        if not 0 <= self.seasonal_amplitude <= 1:
+            raise ValueError("seasonal_amplitude must be between 0 and 1")
+        if not -2 * np.pi <= self.seasonal_phase <= 2 * np.pi:
+            raise ValueError("seasonal_phase should be between -2π and 2π radians")
+        # On/off parameters
+        if self.activation_probability < 0 or self.activation_probability > 1:
+            raise ValueError("activation_probability must be between 0 and 1")
+        if self.min_active_periods < 1:
+            raise ValueError("min_active_periods must be at least 1")
+        if self.max_active_periods < self.min_active_periods:
+            raise ValueError("max_active_periods must be >= min_active_periods")
+        # Regional variation validation
+        if not 0 <= self.regional_effect_variation:
+            raise ValueError("regional_effect_variation must non-negative")
+        # Name validation
+        if "_" in self.name:
+            raise ValueError("control name must not contain underscores (use hyphens instead)")
+
+    
+
+@dataclass
 class MMMDataConfig:
     """Main configuration for MMM dataset generation."""
     
@@ -160,7 +259,7 @@ class MMMDataConfig:
     seed: Optional[int] = None
     
     # Control variables
-    control_variables: Dict[str, Dict[str, float]] = field(default_factory=dict)
+    control_variables: List[ControlConfig] = field(default_factory=list)
     
     # Output options
     include_ground_truth: bool = True
@@ -178,11 +277,11 @@ class MMMDataConfig:
         if len(channel_names) != len(set(channel_names)):
             raise ValueError("Channel names must be unique")
         # Validate control variables
-        for var_name, var_config in self.control_variables.items():
-            if "base_value" not in var_config:
-                raise ValueError(f"Control variable {var_name} must have 'base_value'")
-            if "volatility" not in var_config:
-                raise ValueError(f"Control variable {var_name} must have 'volatility'")
+        for control_var in self.control_variables:
+            if not hasattr(control_var, 'name'):
+                raise ValueError("Control variable must have a 'name' attribute")
+            if control_var.base_spend < 0:
+                raise ValueError(f"Control variable {control_var.name} base_spend must be non-negative")
 
 
 # Default configuration preset
@@ -225,19 +324,21 @@ DEFAULT_CONFIG = MMMDataConfig(
         saturation_fun="hill_function",
         saturation_kwargs=[{"slope": 1.0, "kappa": 2000.0}, {"slope": 1.0, "kappa": 2500.0}, {"slope": 1.0, "kappa": 3000.0}]
     ),
-    control_variables={
-        "price": {
-            "base_value": 10.0,
-            "volatility": 0.1,
-            "trend": 0.02,
-            "seasonal_amplitude": 0.05
-        },
-        "promotion": {
-            "base_value": 0.2,
-            "volatility": 0.05,
-            "trend": 0.0,
-            "seasonal_amplitude": 0.1
-        }
-    },
+    control_variables=[
+        ControlConfig(
+            name="price",
+            pattern="linear_trend",
+            base_effect=10.0,
+            effect_volatility=1.0,
+            effect_trend=0.1
+        ),
+        ControlConfig(
+            name="promotion",
+            base_effect=15.0,
+            effect_volatility=1.0,
+            effect_trend=0.0,
+            seasonal_amplitude=0.05
+        )
+    ],
     seed=42
 ) 

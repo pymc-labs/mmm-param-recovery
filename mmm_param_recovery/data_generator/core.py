@@ -10,8 +10,8 @@ import pandas as pd
 from typing import Dict, List, Optional, Tuple, Union, Any
 import warnings
 
-from .config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
-from .channels import generate_channel_spend
+from .config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig, ControlConfig
+from .channels import generate_channel_spend, generate_control_effect
 from .regions import generate_regional_baseline, generate_regional_channel_variations, generate_regional_transform_variations
 from .transforms import apply_transformations
 from .ground_truth import calculate_roas_values, calculate_attribution_percentages
@@ -234,23 +234,36 @@ def _generate_control_variables(
     config: MMMDataConfig, 
     time_index: pd.DatetimeIndex
 ) -> pd.DataFrame:
-    """Placeholder function for generating control variables data.
+    """Generate control variables data with regional variations.
     
     Returns a DataFrame with multi-index (time_index, geo region) containing
-    columns of zeros for each control variable.
+    control variable effects for each region.
     """
-    # Create multi-index for all regions and time periods
-    multi_index = pd.MultiIndex.from_product(
-        [time_index, config.regions.region_names], 
-        names=['date', 'geo']
-    )
+    # Create a list to store regional DataFrames
+    regional_dataframes = []
     
-    # Create DataFrame with zeros for each control variable
-    control_data = {}
-    for idx, var_name in enumerate(config.control_variables.keys()):
-        control_data[f"c{idx+1}"] = 0.0
-
-    return pd.DataFrame(control_data, index=multi_index)
+    for region_idx, region_name in enumerate(config.regions.region_names): # type: ignore
+        regional_control_variables = generate_regional_channel_variations(
+            config.regions, config.control_variables, region_idx, config.seed # type: ignore
+        )
+        region_data = pd.DataFrame(index=pd.MultiIndex.from_product([time_index, [region_name]], names=['date', 'geo']))
+        
+        for idx, _control in enumerate(regional_control_variables):
+            # Generate independent control effect for this region
+            # Use region-specific seed for independence
+            region_seed = config.seed + region_idx * 1000 + idx * 100 if config.seed is not None else None
+            
+            # Convert ChannelConfig to ControlConfig using the new from_channel_config method
+            control = ControlConfig.from_channel_config(_control)
+            control_effect = generate_control_effect(control, time_index, region_seed)
+            region_data[f"c{idx+1}"] = control_effect
+        
+        regional_dataframes.append(region_data)
+    
+    # Concatenate all regional DataFrames on axis=0
+    control_data = pd.concat(regional_dataframes, axis=0)
+    
+    return control_data
 
 
 def _apply_transformations_to_data(

@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from typing import Optional
-from .config import ChannelConfig
+from .config import ChannelConfig, ControlConfig
 
 
 def _generate_linear_trend_pattern(
@@ -121,6 +121,7 @@ def _generate_delayed_start_pattern(
     n_periods: int,
     base_spend: float,
     start_period: int,
+    end_period: int,
     ramp_up_periods: int,
     spend_volatility: float,
     seed: Optional[int] = None
@@ -136,6 +137,8 @@ def _generate_delayed_start_pattern(
         Base spend level
     start_period : int
         Period when channel starts (0-indexed)
+    end_period : int
+        Period when channel ends (0-indexed)
     ramp_up_periods : int
         Number of periods to ramp up to full spend
     spend_volatility : float
@@ -298,7 +301,8 @@ def generate_channel_spend(
         return _generate_delayed_start_pattern(
             n_periods=n_periods,
             base_spend=channel.base_spend,
-            start_period=channel.start_period,
+            start_period=channel.start_period or 0,
+            end_period=channel.end_period or n_periods,
             ramp_up_periods=channel.ramp_up_periods,
             spend_volatility=channel.spend_volatility,
             seed=seed
@@ -321,4 +325,32 @@ def generate_channel_spend(
         return channel.custom_pattern_func(channel, time_index, seed)
     
     else:
-        raise ValueError(f"Unknown channel pattern: {channel.pattern}") 
+        raise ValueError(f"Unknown channel pattern: {channel.pattern}")
+    
+def generate_control_effect(
+    control: ControlConfig,
+    time_index: pd.DatetimeIndex,
+    seed: Optional[int] = None
+) -> np.ndarray:
+    """
+    Generate effect pattern for a single control variable.
+    
+    Parameters
+    ----------
+    control : ControlConfig
+        Control variable configuration
+    time_index : pd.DatetimeIndex
+        Time index for the data
+    seed : int, optional
+        Random seed for reproducibility
+        
+    Returns
+    -------
+    np.ndarray
+        Control effect values for each time period
+    """
+    return generate_channel_spend(
+        channel=control,
+        time_index=time_index,
+        seed=seed
+    )
