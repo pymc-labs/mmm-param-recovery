@@ -113,8 +113,8 @@ class RegionConfig:
     
     # Baseline sales parameters
     base_sales_rate: float = 10000.0  # Base sales per period
-    sales_trend: float = 0.02  # Linear trend in sales over time
-    sales_volatility: float = 0.15  # Coefficient of variation for sales noise
+    sales_trend: float = 0.00  # Linear trend in sales over time
+    sales_volatility: float = 0.01  # Coefficient of variation for sales noise
     
     # Seasonal parameters
     seasonal_amplitude: float = 0.2  # Amplitude of seasonal variation in sales
