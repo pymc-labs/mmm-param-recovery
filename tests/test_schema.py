@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Dict, Any
 
 from mmm_param_recovery.data_generator import generate_mmm_dataset
-from mmm_param_recovery.data_generator.config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
+from mmm_param_recovery.data_generator.config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig, ControlConfig
 
 
 def test_mmm_schema():
@@ -29,10 +29,10 @@ def test_mmm_schema():
             saturation_fun="hill_function",
             saturation_kwargs={"slope": 1.0, "kappa": 1000.0}
         ),
-        control_variables={
-            'price': {'base_value': 10.0, 'volatility': 0.1},
-            'promotion': {'base_value': 0.2, 'volatility': 0.05}
-        },
+        control_variables=[
+            ControlConfig(name='price', base_effect=10.0, effect_volatility=0.1),
+            ControlConfig(name='promotion', base_effect=0.2, effect_volatility=0.05)
+        ],
         seed=123
     )
     
