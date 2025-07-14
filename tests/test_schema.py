@@ -30,8 +30,8 @@ def test_mmm_schema():
             saturation_kwargs={"slope": 1.0, "kappa": 1000.0}
         ),
         control_variables=[
-            ControlConfig(name='price', base_effect=10.0, effect_volatility=0.1),
-            ControlConfig(name='promotion', base_effect=0.2, effect_volatility=0.05)
+            ControlConfig(name='price', base_value=10.0, value_volatility=0.1),
+            ControlConfig(name='promotion', base_value=0.2, value_volatility=0.05)
         ],
         seed=123
     )

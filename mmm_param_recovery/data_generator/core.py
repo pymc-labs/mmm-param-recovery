@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 import warnings
 
 from .config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig, ControlConfig
-from .channels import generate_channel_spend, generate_control_effect
+from .channels import generate_channel_spend, generate_control_variable
 from .regions import generate_regional_baseline, generate_regional_channel_variations, generate_regional_transform_variations
 from .transforms import apply_transformations
 from .ground_truth import calculate_roas_values, calculate_attribution_percentages
@@ -255,8 +255,9 @@ def _generate_control_variables(
             
             # Convert ChannelConfig to ControlConfig using the new from_channel_config method
             control = ControlConfig.from_channel_config(_control)
-            control_effect = generate_control_effect(control, time_index, region_seed)
-            region_data[f"c{idx+1}"] = control_effect
+            control_variable = generate_control_variable(control, time_index, region_seed)
+            region_data[f"c{idx+1}"] = control_variable
+            region_data[f"c{idx+1}_effect"] = control_variable * control.base_effectiveness
         
         regional_dataframes.append(region_data)
     
@@ -264,7 +265,6 @@ def _generate_control_variables(
     control_data = pd.concat(regional_dataframes, axis=0)
     
     return control_data
-
 
 def _apply_transformations_to_data(
     config: MMMDataConfig,

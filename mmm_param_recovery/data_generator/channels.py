@@ -326,8 +326,9 @@ def generate_channel_spend(
     
     else:
         raise ValueError(f"Unknown channel pattern: {channel.pattern}")
-    
-def generate_control_effect(
+
+
+def generate_control_variable(
     control: ControlConfig,
     time_index: pd.DatetimeIndex,
     seed: Optional[int] = None

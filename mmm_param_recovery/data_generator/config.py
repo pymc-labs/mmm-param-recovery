@@ -161,12 +161,12 @@ class RegionConfig:
 class ControlConfig(ChannelConfig):
     """Configuration for a control variable."""
     # Control variable specific attributes
-    base_effect: float = 10.0
-    effect_volatility: float = 1.0
-    effect_trend: float = 0.1
+    base_value: float = 10.0
+    value_volatility: float = 1.0
+    value_trend: float = 0.1
     
     # Regional variation parameters (similar to channels)
-    regional_effect_variation: float = 0.05  # Factor for regional effect variation (0.05 = ±5%)
+    regional_value_variation: float = 0.05  # Factor for regional value variation (0.05 = ±5%)
     
     # Override defaults for control variables
     pattern: Literal["linear_trend", "seasonal", "delayed_start", "on_off", "custom"] = "on_off"
@@ -177,7 +177,7 @@ class ControlConfig(ChannelConfig):
         Create a ControlConfig from a ChannelConfig.
         
         This method maps ChannelConfig attributes to ControlConfig attributes,
-        using the channel's spend parameters as the control's effect parameters.
+        using the channel's spend parameters as the control's value parameters.
         
         Parameters
         ----------
@@ -192,9 +192,9 @@ class ControlConfig(ChannelConfig):
         return cls(
             name=channel_config.name,
             pattern=channel_config.pattern,
-            base_effect=channel_config.base_spend,
-            effect_volatility=channel_config.spend_volatility,
-            effect_trend=channel_config.spend_trend,
+            base_value=channel_config.base_spend,
+            value_volatility=channel_config.spend_volatility,
+            value_trend=channel_config.spend_trend,
             seasonal_amplitude=channel_config.seasonal_amplitude,
             seasonal_phase=channel_config.seasonal_phase,
             start_period=channel_config.start_period,
@@ -209,14 +209,14 @@ class ControlConfig(ChannelConfig):
         )
     
     def __post_init__(self):
-        """Map effect attributes to spend attributes and validate."""
-        # Map effect attributes to spend attributes
-        self.base_spend = self.base_effect
-        self.spend_volatility = self.effect_volatility
-        self.spend_trend = self.effect_trend
+        """Map value attributes to spend attributes and validate."""
+        # Map value attributes to spend attributes
+        self.base_spend = self.base_value
+        self.spend_volatility = self.value_volatility
+        self.spend_trend = self.value_trend
         
         if self.spend_volatility < 0:
-            raise ValueError("effect_volatility must be non-negative")
+            raise ValueError("value_volatility must be non-negative")
         # Seasonal parameters
         if not 0 <= self.seasonal_amplitude <= 1:
             raise ValueError("seasonal_amplitude must be between 0 and 1")
@@ -230,8 +230,8 @@ class ControlConfig(ChannelConfig):
         if self.max_active_periods < self.min_active_periods:
             raise ValueError("max_active_periods must be >= min_active_periods")
         # Regional variation validation
-        if not 0 <= self.regional_effect_variation:
-            raise ValueError("regional_effect_variation must non-negative")
+        if not 0 <= self.regional_value_variation:
+            raise ValueError("regional_value_variation must non-negative")
         # Name validation
         if "_" in self.name:
             raise ValueError("control name must not contain underscores (use hyphens instead)")
@@ -328,15 +328,15 @@ DEFAULT_CONFIG = MMMDataConfig(
         ControlConfig(
             name="price",
             pattern="linear_trend",
-            base_effect=10.0,
-            effect_volatility=1.0,
-            effect_trend=0.1
+            base_value=10.0,
+            value_volatility=1.0,
+            value_trend=0.1
         ),
         ControlConfig(
             name="promotion",
-            base_effect=15.0,
-            effect_volatility=1.0,
-            effect_trend=0.0,
+            base_value=15.0,
+            value_volatility=1.0,
+            value_trend=0.0,
             seasonal_amplitude=0.05
         )
     ],
