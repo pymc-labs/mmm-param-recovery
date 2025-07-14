@@ -157,7 +157,7 @@ def _generate_delayed_start_pattern(
     
     # Ramp up period
     if ramp_up_periods > 0:
-        ramp_end = min(start_period + ramp_up_periods, n_periods)
+        ramp_end = min(start_period + ramp_up_periods, n_periods, end_period)
         ramp_periods = ramp_end - start_period
         
         for i in range(ramp_periods):
@@ -168,7 +168,7 @@ def _generate_delayed_start_pattern(
     
     # Full spend after ramp up
     full_spend_start = start_period + ramp_up_periods
-    if full_spend_start < n_periods:
+    if full_spend_start < min(n_periods, end_period):
         spend[full_spend_start:] = base_spend
     
     # Add noise with specified volatility (only to non-zero periods)
@@ -272,8 +272,6 @@ def generate_channel_spend(
     np.ndarray
         Spend values for each time period
     """
-    # Validate channel parameters before generation
-    validate_channel_parameters(channel)
     
     n_periods = len(time_index)
     
@@ -297,8 +295,6 @@ def generate_channel_spend(
         )
     
     elif channel.pattern == "delayed_start":
-        if channel.start_period is None:
-            raise ValueError("start_period must be specified for delayed_start pattern")
         return _generate_delayed_start_pattern(
             n_periods=n_periods,
             base_spend=channel.base_spend,
