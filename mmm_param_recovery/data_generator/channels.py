@@ -250,67 +250,6 @@ def _generate_on_off_pattern(
     return spend.astype(float)
 
 
-def validate_channel_parameters(channel: ChannelConfig) -> None:
-    """
-    Validate channel parameters and provide reasonable range checks.
-    
-    Parameters
-    ----------
-    channel : ChannelConfig
-        Channel configuration to validate
-        
-    Raises
-    ------
-    ValueError
-        If any parameters are outside reasonable ranges
-    """
-    # Base spend validation
-    if channel.base_spend < 0:
-        raise ValueError("base_spend must be non-negative")
-    
-    # Spend volatility validation
-    if channel.spend_volatility < 0:
-        raise ValueError("spend_volatility must be non-negative")
-    if channel.spend_volatility > 1:
-        warnings.warn(f"spend_volatility, ({channel.spend_volatility * 100}%) seems unusually high (>200%) of base spend: {channel.base_spend}")
-    
-    # Pattern-specific validations
-    if channel.pattern == "seasonal":
-        # Seasonal amplitude validation
-        if not 0 <= channel.seasonal_amplitude <= 1:
-            raise ValueError("seasonal_amplitude must be between 0 and 1")
-        if not -2 * np.pi <= channel.seasonal_phase <= 2 * np.pi:
-            raise ValueError("seasonal_phase should be between -2π and 2π radians")
-    
-    elif channel.pattern == "delayed_start":
-        # Delayed start validation
-        if channel.start_period is None:
-            raise ValueError("start_period must be specified for delayed_start pattern")
-        if channel.start_period < 0:
-            raise ValueError("start_period must be non-negative")
-        if channel.ramp_up_periods < 0:
-            raise ValueError("ramp_up_periods must be non-negative")
-        
-    elif channel.pattern == "on_off":
-        # On/off validation
-        if not 0 <= channel.activation_probability <= 1:
-            raise ValueError("activation_probability must be between 0 and 1")
-        if channel.min_active_periods < 1:
-            raise ValueError("min_active_periods must be at least 1")
-        if channel.max_active_periods < channel.min_active_periods:
-            raise ValueError("max_active_periods must be >= min_active_periods")
-    
-    # Effectiveness validation
-    if channel.base_effectiveness < 0:
-        raise ValueError("base_effectiveness must be non-negative")
-    
-    # Name validation
-    if "_" in channel.name:
-        raise ValueError("channel name must not contain underscores (use hyphens instead)")
-    if not channel.name.strip():
-        raise ValueError("channel name cannot be empty or whitespace only")
-
-
 def generate_channel_spend(
     channel: ChannelConfig,
     time_index: pd.DatetimeIndex,

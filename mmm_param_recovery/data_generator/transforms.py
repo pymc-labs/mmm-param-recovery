@@ -40,7 +40,6 @@ def apply_transform(
 def apply_transformations(
     spend_data: np.ndarray,
     transforms: TransformConfig,
-    channel_config: Optional[ChannelConfig] = None,
     channel_idx: int = 0
 ) -> Tuple[np.ndarray, Dict[str, Any]]:
     """
@@ -52,8 +51,6 @@ def apply_transformations(
         Raw spend data
     transforms : TransformConfig
         Transformation configuration
-    channel_config : ChannelConfig, optional
-        Channel configuration for channel-specific transformations
     channel_idx : int, optional
         Channel index for per-channel parameter selection
         

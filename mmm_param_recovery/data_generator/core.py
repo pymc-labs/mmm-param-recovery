@@ -274,11 +274,6 @@ def _apply_transformations_to_data(
             config.seed
         )
         
-        # Get regional channels configuration
-        regional_channels = generate_regional_channel_variations(
-            config.regions, config.channels, region_idx, config.seed
-        )
-        
         # Get spend data for this region
         region_mask = spend_data.index.get_level_values('geo') == region_name
         region_spend_data = spend_data[region_mask].copy()
@@ -288,7 +283,7 @@ def _apply_transformations_to_data(
         
         
         # Apply transformations to each channel
-        for i, channel in enumerate(regional_channels):
+        for i, channel in enumerate(config.channels):
             # Find the corresponding column in the spend data
             # Use consistent x{i+1} format for channel columns
             column_name = f'x{i+1}_{channel.name}' if channel.name != "" else f'x{i+1}'
@@ -299,7 +294,6 @@ def _apply_transformations_to_data(
                 transformed_spend, channel_params = apply_transformations(
                     region_spend_data[column_name].values / max_spend,
                     regional_transform,
-                    channel,
                     channel_idx=i
                 )
                 
