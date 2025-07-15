@@ -333,36 +333,55 @@ def _get_traditional_media_preset() -> MMMDataConfig:
 def _get_small_business_preset() -> MMMDataConfig:
     """Preset for small business with limited budget and channels."""
     return MMMDataConfig(
-        n_periods=52,
+        n_periods=104,
         channels=[
             ChannelConfig(
-                name="x-Social-Media",
+                name="Search-Ads",
                 pattern="linear_trend",
-                base_spend=500.0,
-                spend_trend=0.1,
-                base_effectiveness=0.7
+                spend_volatility=0.02,
+                base_spend=100.0,
+                spend_trend=0.004, # about 20% per year
             ),
             ChannelConfig(
-                name="x-Local-Ads",
+                name="Social-Media",
+                pattern="seasonal",
+                base_spend=500.0,
+                spend_volatility=0.05,
+                seasonal_amplitude=0.4,
+                seasonal_phase=0.5
+            ),
+            ChannelConfig(
+                name="Local-Ads",
                 pattern="on_off",
-                base_spend=300.0,
-                activation_probability=0.6,
-                base_effectiveness=0.5
+                base_spend=500.0,
+                spend_volatility=0.05,
+                activation_probability=0.3,
+                min_active_periods=2,
+                max_active_periods=4,
+            ),
+            ChannelConfig(
+                name="Email",
+                pattern="on_off",
+                base_spend=100.0,
+                spend_volatility=0.05,
+                activation_probability=0.2,
+                min_active_periods=1,
+                max_active_periods=1,
             )
         ],
         regions=RegionConfig(
             n_regions=1,
             region_names=["Local"],
             base_sales_rate=5000.0,
-            sales_volatility=0.2
+            sales_volatility=0.05,
         ),
         transforms=TransformConfig(
             adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": 0.4},
+            adstock_kwargs={"alpha": [0, 0.2, 0.4, 0.3]},
             saturation_fun="hill_function",
-            saturation_kwargs={"slope": 1.0, "kappa": 400.0}
+            saturation_kwargs={"slope": [1, 1.5, 1, 2], "kappa": 0.7}
         ),
-        seed=987
+        seed=2025_07_15
     )
 
 
