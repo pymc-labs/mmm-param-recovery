@@ -6,7 +6,7 @@ making it easy for users to get started with common configurations.
 """
 
 from typing import Dict, Any
-from .config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
+from .config import ControlConfig, MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
 
 
 def get_preset_config(preset_name: str) -> MMMDataConfig:
@@ -369,6 +369,28 @@ def _get_small_business_preset() -> MMMDataConfig:
                 max_active_periods=1,
             )
         ],
+        control_variables=[
+            ControlConfig(
+                name="Event",
+                pattern="on_off",
+                base_value=100.0,
+                value_volatility=0.05,
+                base_effectiveness=0.5,
+                activation_probability=0.04,
+                min_active_periods=3,
+                max_active_periods=5,
+            ),
+            ControlConfig(
+                name="Sale",
+                pattern="on_off",
+                base_value=50.0,
+                value_volatility=0.05,
+                base_effectiveness=0.5,
+                activation_probability=0.1,
+                min_active_periods=1,
+                max_active_periods=4,
+            )
+        ],
         regions=RegionConfig(
             n_regions=1,
             region_names=["Local"],
@@ -384,6 +406,98 @@ def _get_small_business_preset() -> MMMDataConfig:
         seed=2025_07_15
     )
 
+
+
+def _get_medium_business_preset() -> MMMDataConfig:
+    """Preset for medium business with more budget and channels."""
+    return MMMDataConfig(
+        n_periods=131, # 2.5 years
+        channels=[
+            ChannelConfig(
+                name="Search-Ads",
+                pattern="linear_trend",
+                spend_volatility=0.02,
+                base_spend=300.0,
+                spend_trend=0.002, # about 20% per year
+            ),
+            ChannelConfig(
+                name="Search-Ads-Brand",
+                pattern="linear_trend",
+                spend_volatility=0.01,
+                base_spend=100.0,
+                spend_trend=0.002, # about 20% per year
+            ),
+            ChannelConfig(
+                name="Video",
+                pattern="delayed_start",
+                base_spend=500.0,
+                spend_volatility=0.05,
+                start_period=25,
+                ramp_up_periods=10,
+            ),
+            ChannelConfig(
+                name="Social-Media",
+                pattern="seasonal",
+                base_spend=500.0,
+                spend_volatility=0.05,
+                seasonal_amplitude=0.4,
+                seasonal_phase=0.5
+            ),
+            ChannelConfig(
+                name="Display-Ads",
+                pattern="on_off",
+                base_spend=500.0,
+                spend_volatility=0.05,
+                activation_probability=0.3,
+                min_active_periods=2,
+                max_active_periods=4,
+            ),
+            ChannelConfig(
+                name="Email",
+                pattern="on_off",
+                base_spend=100.0,
+                spend_volatility=0.05,
+                activation_probability=0.2,
+                min_active_periods=1,
+                max_active_periods=1,
+            )
+        ],
+        control_variables=[
+            ControlConfig(
+                name="Event",
+                pattern="on_off",
+                base_value=500.0,
+                value_volatility=0.05,
+                base_effectiveness=0.5,
+                activation_probability=0.04,
+                min_active_periods=3,
+                max_active_periods=5,
+            ),
+            ControlConfig(
+                name="Sale",
+                pattern="on_off",
+                base_value=25.0,
+                value_volatility=0.5,
+                base_effectiveness=1.5,
+                activation_probability=0.1,
+                min_active_periods=1,
+                max_active_periods=4,
+            )
+        ],
+        regions=RegionConfig(
+            n_regions=2,
+            region_names=["geo_a", "geo_b"],
+            base_sales_rate=10000.0,
+            sales_volatility=0.05,
+        ),
+        transforms=TransformConfig(
+            adstock_fun="geometric_adstock",
+            adstock_kwargs={"alpha": [0, 0.2, 0.4, 0.3]},
+            saturation_fun="hill_function",
+            saturation_kwargs={"slope": [1, 1.5, 1, 2], "kappa": 0.7}
+        ),
+        seed=2025_07_15
+    )
 
 def _get_enterprise_preset() -> MMMDataConfig:
     """Preset for enterprise-level analysis with many channels and regions."""
@@ -447,90 +561,6 @@ def _get_enterprise_preset() -> MMMDataConfig:
     )
 
 
-def _get_research_preset() -> MMMDataConfig:
-    """Preset optimized for research and parameter recovery studies."""
-    return MMMDataConfig(
-        n_periods=200,  # Maximum periods for research
-        channels=[
-            ChannelConfig(
-                name="x1",
-                pattern="linear_trend",
-                base_spend=1000.0,
-                spend_trend=0.05,
-                base_effectiveness=0.5
-            ),
-            ChannelConfig(
-                name="x2",
-                pattern="seasonal",
-                base_spend=1000.0,
-                seasonal_amplitude=0.4,
-                base_effectiveness=0.5
-            ),
-            ChannelConfig(
-                name="x3",
-                pattern="on_off",
-                base_spend=1000.0,
-                activation_probability=0.7,
-                base_effectiveness=0.5
-            )
-        ],
-        regions=RegionConfig(
-            n_regions=1,
-            region_names=["geo_a"],
-            base_sales_rate=8000.0,
-            sales_volatility=0.1  # Lower volatility for cleaner signals
-        ),
-        transforms=TransformConfig(
-            adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": 0.5},
-            saturation_fun="hill_function",
-            saturation_kwargs={"slope": 1.0, "kappa": 1000.0}
-        ),
-        seed=258
-    )
-
-
-def _get_demo_preset() -> MMMDataConfig:
-    """Preset optimized for demonstrations and presentations."""
-    return MMMDataConfig(
-        n_periods=52,
-        channels=[
-            ChannelConfig(
-                name="x-TV",
-                pattern="seasonal",
-                base_spend=3000.0,
-                seasonal_amplitude=0.5,
-                base_effectiveness=0.7
-            ),
-            ChannelConfig(
-                name="x-Digital",
-                pattern="linear_trend",
-                base_spend=2000.0,
-                spend_trend=0.1,
-                base_effectiveness=0.6
-            ),
-            ChannelConfig(
-                name="x-Radio",
-                pattern="on_off",
-                base_spend=1000.0,
-                activation_probability=0.8,
-                base_effectiveness=0.4
-            )
-        ],
-        regions=RegionConfig(
-            n_regions=2,
-            region_names=["geo_a", "geo_b"]
-        ),
-        transforms=TransformConfig(
-            adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": 0.6},
-            saturation_fun="hill_function",
-            saturation_kwargs={"slope": 1.0, "kappa": 2000.0}
-        ),
-        seed=369
-    )
-
-
 def list_available_presets() -> Dict[str, str]:
     """
     Get a list of available presets with descriptions.
@@ -549,9 +579,7 @@ def list_available_presets() -> Dict[str, str]:
         'traditional_media': 'Focused on traditional media channels',
         'small_business': 'Small business with limited budget and channels',
         'enterprise': 'Enterprise-level analysis with many channels and regions',
-        'research': 'Optimized for research and parameter recovery studies',
-        'demo': 'Optimized for demonstrations and presentations'
-    }
+        }
 
 
 def customize_preset(preset_name: str, **overrides) -> MMMDataConfig:
