@@ -241,11 +241,21 @@ def _get_small_business_preset(seed: int) -> MMMDataConfig:
         ),
         transforms=TransformConfig(
             adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": [0, 0.2, 0.4, 0.3]},
+            adstock_kwargs=[
+                {"alpha": 0}, 
+                {"alpha": 0.2}, 
+                {"alpha": 0.4}, 
+                {"alpha": 0.3}
+            ],
             saturation_fun="hill_function",
-            saturation_kwargs={"slope": [1, 1.5, 1, 2], "kappa": 0.7}
+            saturation_kwargs =[
+                {"slope": 1, "kappa": 0.7}, 
+                {"slope": 1.5, "kappa": 0.7}, 
+                {"slope": 1, "kappa": 0.7}, 
+                {"slope": 2, "kappa": 0.7}
+            ],
         ),
-        seed=seed
+        seed=seed,
     )
 
 
@@ -334,9 +344,19 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
         ),
         transforms=TransformConfig(
             adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": [0, 0.2, 0.4, 0.3]},
+            adstock_kwargs=[
+                {"alpha": 0}, 
+                {"alpha": 0.2}, 
+                {"alpha": 0.4}, 
+                {"alpha": 0.3}
+            ],
             saturation_fun="hill_function",
-            saturation_kwargs={"slope": [1, 1.5, 1, 2], "kappa": 0.7}
+            saturation_kwargs=[
+                {"slope": 1, "kappa": 0.7},
+                {"slope": 1.5, "kappa": 0.7},
+                {"slope": 1, "kappa": 0.7},
+                {"slope": 2, "kappa": 0.7},
+            ],
         ),
         seed=seed
     )
@@ -459,9 +479,27 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
         ),
         transforms=TransformConfig(
             adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": [0, 0.2, 0.4, 0.3, 0.2, 0.1, 0.1, 0.1]},
+            adstock_kwargs=[
+                {"alpha": 0}, 
+                {"alpha": 0.2}, 
+                {"alpha": 0.4}, 
+                {"alpha": 0.3},
+                {"alpha": 0.2},
+                {"alpha": 0.1},
+                {"alpha": 0.1},
+                {"alpha": 0.1},
+            ],
             saturation_fun="hill_function",
-            saturation_kwargs={"slope": [1, 1.5, 1, 2, 1, 1, 1, 1], "kappa": 0.7}
+            saturation_kwargs=[
+                {"slope": 1, "kappa": 0.7},
+                {"slope": 1.5, "kappa": 0.7},
+                {"slope": 1, "kappa": 0.7},
+                {"slope": 2, "kappa": 0.7},
+                {"slope": 1, "kappa": 0.7},
+                {"slope": 1, "kappa": 0.7},
+                {"slope": 1, "kappa": 0.7},
+                {"slope": 1, "kappa": 0.7},
+            ],
         ),
         seed=seed
     )
