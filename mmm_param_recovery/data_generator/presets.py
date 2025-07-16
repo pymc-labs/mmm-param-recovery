@@ -5,6 +5,7 @@ This module provides pre-configured settings for typical MMM scenarios,
 making it easy for users to get started with common configurations.
 """
 
+from math import pi
 from typing import Dict, Any
 from .config import ControlConfig, MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
 
@@ -32,13 +33,9 @@ def get_preset_config(preset_name: str) -> MMMDataConfig:
         'basic': _get_basic_preset(),
         'seasonal': _get_seasonal_preset(),
         'multi_region': _get_multi_region_preset(),
-        'high_frequency': _get_high_frequency_preset(),
-        'digital_heavy': _get_digital_heavy_preset(),
-        'traditional_media': _get_traditional_media_preset(),
         'small_business': _get_small_business_preset(),
-        'enterprise': _get_enterprise_preset(),
-        'research': _get_research_preset(),
-        'demo': _get_demo_preset()
+        'medium_business': _get_medium_business_preset(),
+        'large_business': _get_large_business_preset(),
     }
     
     if preset_name not in presets:
@@ -172,161 +169,6 @@ def _get_multi_region_preset() -> MMMDataConfig:
             saturation_kwargs={"slope": 1.0, "kappa": 1800.0}
         ),
         seed=456
-    )
-
-
-def _get_high_frequency_preset() -> MMMDataConfig:
-    """Preset for high-frequency digital marketing analysis."""
-    return MMMDataConfig(
-        n_periods=156,  # 3 years of weekly data
-        channels=[
-            ChannelConfig(
-                name="x-Paid-Search",
-                pattern="on_off",
-                base_spend=1200.0,
-                activation_probability=0.9,
-                min_active_periods=1,
-                max_active_periods=4,
-                base_effectiveness=0.8
-            ),
-            ChannelConfig(
-                name="x-Social-Media",
-                pattern="linear_trend",
-                base_spend=800.0,
-                spend_trend=0.12,
-                base_effectiveness=0.6
-            ),
-            ChannelConfig(
-                name="x-Display",
-                pattern="on_off",
-                base_spend=600.0,
-                activation_probability=0.7,
-                min_active_periods=2,
-                max_active_periods=6,
-                base_effectiveness=0.4
-            ),
-            ChannelConfig(
-                name="x-Email",
-                pattern="seasonal",
-                base_spend=300.0,
-                seasonal_amplitude=0.2,
-                base_effectiveness=0.9
-            )
-        ],
-        regions=RegionConfig(
-            n_regions=1,
-            region_names=["geo_a"]
-        ),
-        transforms=TransformConfig(
-            adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": 0.3},  # Lower adstock for digital channels
-            saturation_fun="hill_function",
-            saturation_kwargs={"slope": 1.0, "kappa": 1000.0}
-        ),
-        seed=789
-    )
-
-
-def _get_digital_heavy_preset() -> MMMDataConfig:
-    """Preset focused on digital marketing channels."""
-    return MMMDataConfig(
-        n_periods=104,
-        channels=[
-            ChannelConfig(
-                name="x-Paid-Search",
-                pattern="linear_trend",
-                base_spend=2000.0,
-                spend_trend=0.15,
-                base_effectiveness=0.8
-            ),
-            ChannelConfig(
-                name="x-Social-Media",
-                pattern="seasonal",
-                base_spend=1500.0,
-                seasonal_amplitude=0.4,
-                base_effectiveness=0.6
-            ),
-            ChannelConfig(
-                name="x-Display",
-                pattern="on_off",
-                base_spend=1000.0,
-                activation_probability=0.8,
-                base_effectiveness=0.4
-            ),
-            ChannelConfig(
-                name="x-Video",
-                pattern="linear_trend",
-                base_spend=1200.0,
-                spend_trend=0.2,
-                base_effectiveness=0.7
-            ),
-            ChannelConfig(
-                name="x-Email",
-                pattern="seasonal",
-                base_spend=500.0,
-                seasonal_amplitude=0.3,
-                base_effectiveness=0.9
-            )
-        ],
-        regions=RegionConfig(
-            n_regions=1,
-            region_names=["geo_a"]
-        ),
-        transforms=TransformConfig(
-            adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": 0.4},
-            saturation_fun="hill_function",
-            saturation_kwargs={"slope": 1.0, "kappa": 1500.0}
-        ),
-        seed=321
-    )
-
-
-def _get_traditional_media_preset() -> MMMDataConfig:
-    """Preset focused on traditional media channels."""
-    return MMMDataConfig(
-        n_periods=104,
-        channels=[
-            ChannelConfig(
-                name="x-TV",
-                pattern="seasonal",
-                base_spend=5000.0,
-                seasonal_amplitude=0.5,
-                base_effectiveness=0.8
-            ),
-            ChannelConfig(
-                name="x-Radio",
-                pattern="seasonal",
-                base_spend=2000.0,
-                seasonal_amplitude=0.3,
-                base_effectiveness=0.4
-            ),
-            ChannelConfig(
-                name="x-Print",
-                pattern="linear_trend",
-                base_spend=1500.0,
-                spend_trend=-0.05,
-                base_effectiveness=0.3
-            ),
-            ChannelConfig(
-                name="x-Outdoor",
-                pattern="seasonal",
-                base_spend=1000.0,
-                seasonal_amplitude=0.2,
-                base_effectiveness=0.5
-            )
-        ],
-        regions=RegionConfig(
-            n_regions=3,
-            region_names=["geo_a", "geo_b", "geo_c"]
-        ),
-        transforms=TransformConfig(
-            adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": 0.7},  # Higher adstock for traditional media
-            saturation_fun="hill_function",
-            saturation_kwargs={"slope": 1.0, "kappa": 3000.0}
-        ),
-        seed=654
     )
 
 
@@ -499,65 +341,129 @@ def _get_medium_business_preset() -> MMMDataConfig:
         seed=2025_07_15
     )
 
-def _get_enterprise_preset() -> MMMDataConfig:
-    """Preset for enterprise-level analysis with many channels and regions."""
+def _get_large_business_preset() -> MMMDataConfig:
+    """Preset for large business with many channels and regions."""
     return MMMDataConfig(
-        n_periods=156,
+        n_periods=131, # 2.5 years
         channels=[
             ChannelConfig(
-                name="x-TV-National",
+                name="Search-Ads",
+                pattern="linear_trend",
+                spend_volatility=0.02,
+                base_spend=300.0,
+                spend_trend=0.002, # about 20% per year
+            ),
+            ChannelConfig(
+                name="Search-Ads-Brand",
+                pattern="linear_trend",
+                spend_volatility=0.01,
+                base_spend=100.0,
+                spend_trend=0.002, # about 20% per year
+            ),
+            ChannelConfig(
+                name="Video",
+                pattern="delayed_start",
+                base_spend=500.0,
+                spend_volatility=0.05,
+                start_period=25,
+                ramp_up_periods=10,
+            ),
+            ChannelConfig(
+                name="Video-2",
+                pattern="delayed_start",
+                base_spend=1000.0,
+                spend_volatility=0.1,
+                start_period=75,
+                end_period=125,
+            ),
+            ChannelConfig(
+                name="Social-Media",
                 pattern="seasonal",
-                base_spend=8000.0,
+                base_spend=1000.0,
+                spend_volatility=0.1,
                 seasonal_amplitude=0.4,
-                base_effectiveness=0.8
+                seasonal_phase=0.5
             ),
             ChannelConfig(
-                name="x-TV-Regional",
+                name="Social-Media-2",
                 pattern="seasonal",
-                base_spend=4000.0,
-                seasonal_amplitude=0.3,
-                base_effectiveness=0.7
-            ),
-            ChannelConfig(
-                name="x-Digital-Display",
-                pattern="linear_trend",
-                base_spend=3000.0,
-                spend_trend=0.1,
-                base_effectiveness=0.5
-            ),
-            ChannelConfig(
-                name="x-Paid-Search",
-                pattern="linear_trend",
-                base_spend=2500.0,
-                spend_trend=0.15,
-                base_effectiveness=0.8
-            ),
-            ChannelConfig(
-                name="x-Social-Media",
-                pattern="seasonal",
-                base_spend=2000.0,
+                base_spend=1000.0,
+                spend_volatility=0.1,
                 seasonal_amplitude=0.2,
-                base_effectiveness=0.6
+                seasonal_phase=0
             ),
             ChannelConfig(
-                name="x-Print",
+                name="Display-Ads",
+                pattern="on_off",
+                base_spend=500.0,
+                spend_volatility=0.05,
+                activation_probability=0.3,
+                min_active_periods=2,
+                max_active_periods=4,
+            ),
+            ChannelConfig(
+                name="Influencer",
+                pattern="on_off",
+                base_spend=500.0,
+                spend_volatility=0.1,
+                activation_probability=0.1,
+                min_active_periods=2,
+                max_active_periods=6,
+            )
+        ],
+        control_variables=[
+            ControlConfig(
+                name="Event-A",
+                pattern="on_off",
+                base_value=500.0,
+                value_volatility=0.05,
+                base_effectiveness=0.5,
+                activation_probability=0.04,
+                min_active_periods=3,
+                max_active_periods=5,
+            ),
+            ControlConfig(
+                name="Event-B",
+                pattern="on_off",
+                base_value=1000.0,
+                value_volatility=0.05,
+                base_effectiveness=0.2,
+                activation_probability=0.2,
+                min_active_periods=1,
+                max_active_periods=8,
+            ),
+            ControlConfig(
+                name="Linear",
                 pattern="linear_trend",
-                base_spend=1500.0,
-                spend_trend=-0.02,
-                base_effectiveness=0.3
+                base_value=1000.0,
+                value_trend=0.005,
+                value_volatility=1,
+                base_effectiveness=0.8,
+            ),
+            ControlConfig(
+                name="Sale",
+                pattern="on_off",
+                base_value=25.0,
+                value_volatility=0.5,
+                base_effectiveness=100.0,
+                activation_probability=0.1,
+                min_active_periods=1,
+                max_active_periods=4,
             )
         ],
         regions=RegionConfig(
-            n_regions=8,
-            region_names=["geo_a", "geo_b", "geo_c", "geo_d", "geo_e", "geo_f", "geo_g", "geo_h"]
+            n_regions=5,
+            region_names=["geo_a", "geo_b", "geo_c", "geo_d", "geo_e"],
+            base_sales_rate=1000000.0,
+            sales_volatility=0.05,
         ),
         transforms=TransformConfig(
             adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": 0.6},
+            adstock_kwargs={"alpha": [0, 0.2, 0.4, 0.3, 0.2, 0.1, 0.1, 0.1]},
             saturation_fun="hill_function",
-            saturation_kwargs={"slope": 1.0, "kappa": 4000.0}
+            saturation_kwargs={"slope": [1, 1.5, 1, 2, 1, 1, 1, 1], "kappa": 0.7}
         ),
-        seed=147
+        seed=2025_07_15
     )
 
 
@@ -574,11 +480,9 @@ def list_available_presets() -> Dict[str, str]:
         'basic': 'Simple configuration for learning and testing',
         'seasonal': 'Strong seasonal patterns for seasonal business analysis',
         'multi_region': 'Multi-regional analysis with regional variations',
-        'high_frequency': 'High-frequency digital marketing analysis',
-        'digital_heavy': 'Focused on digital marketing channels',
-        'traditional_media': 'Focused on traditional media channels',
         'small_business': 'Small business with limited budget and channels',
-        'enterprise': 'Enterprise-level analysis with many channels and regions',
+        'medium_business': 'Medium business with more budget and channels',
+        'large_business': 'Large business with many channels and regions',
         }
 
 
