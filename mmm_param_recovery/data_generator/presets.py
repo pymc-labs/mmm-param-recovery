@@ -10,7 +10,7 @@ from typing import Dict, Any
 from .config import ControlConfig, MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
 
 
-def get_preset_config(preset_name: str) -> MMMDataConfig:
+def get_preset_config(preset_name: str, seed: int = 2025_07_15) -> MMMDataConfig:
     """
     Get a preset configuration for common MMM use cases.
     
@@ -30,22 +30,22 @@ def get_preset_config(preset_name: str) -> MMMDataConfig:
         If preset name is not recognized
     """
     presets = {
-        'basic': _get_basic_preset(),
-        'seasonal': _get_seasonal_preset(),
-        'multi_region': _get_multi_region_preset(),
-        'small_business': _get_small_business_preset(),
-        'medium_business': _get_medium_business_preset(),
-        'large_business': _get_large_business_preset(),
+        'basic': _get_basic_preset,
+        'seasonal': _get_seasonal_preset,
+        'multi_region': _get_multi_region_preset,
+        'small_business': _get_small_business_preset,
+        'medium_business': _get_medium_business_preset,
+        'large_business': _get_large_business_preset,
     }
     
     if preset_name not in presets:
         available_presets = ', '.join(presets.keys())
         raise ValueError(f"Unknown preset '{preset_name}'. Available presets: {available_presets}")
     
-    return presets[preset_name]
+    return presets[preset_name](seed)
 
 
-def _get_basic_preset() -> MMMDataConfig:
+def _get_basic_preset(seed: int) -> MMMDataConfig:
     """Basic preset for learning and testing."""
     return MMMDataConfig(
         n_periods=52,  # 1 year of weekly data
@@ -82,11 +82,11 @@ def _get_basic_preset() -> MMMDataConfig:
             saturation_fun="hill_function",
             saturation_kwargs={"slope": 1.0, "kappa": 1500.0}
         ),
-        seed=42
+        seed=seed
     )
 
 
-def _get_seasonal_preset() -> MMMDataConfig:
+def _get_seasonal_preset(seed: int) -> MMMDataConfig:
     """Preset with strong seasonal patterns for seasonal business analysis."""
     return MMMDataConfig(
         n_periods=104,  # 2 years for seasonal analysis
@@ -127,11 +127,11 @@ def _get_seasonal_preset() -> MMMDataConfig:
             saturation_fun="hill_function",
             saturation_kwargs={"slope": 1.0, "kappa": 2000.0}
         ),
-        seed=123
+        seed=seed
     )
 
 
-def _get_multi_region_preset() -> MMMDataConfig:
+def _get_multi_region_preset(seed: int) -> MMMDataConfig:
     """Preset for multi-regional analysis with regional variations."""
     return MMMDataConfig(
         n_periods=78,  # 1.5 years
@@ -168,11 +168,11 @@ def _get_multi_region_preset() -> MMMDataConfig:
             saturation_fun="hill_function",
             saturation_kwargs={"slope": 1.0, "kappa": 1800.0}
         ),
-        seed=456
+        seed=seed
     )
 
 
-def _get_small_business_preset() -> MMMDataConfig:
+def _get_small_business_preset(seed: int) -> MMMDataConfig:
     """Preset for small business with limited budget and channels."""
     return MMMDataConfig(
         n_periods=104,
@@ -245,12 +245,12 @@ def _get_small_business_preset() -> MMMDataConfig:
             saturation_fun="hill_function",
             saturation_kwargs={"slope": [1, 1.5, 1, 2], "kappa": 0.7}
         ),
-        seed=2025_07_15
+        seed=seed
     )
 
 
 
-def _get_medium_business_preset() -> MMMDataConfig:
+def _get_medium_business_preset(seed: int) -> MMMDataConfig:
     """Preset for medium business with more budget and channels."""
     return MMMDataConfig(
         n_periods=131, # 2.5 years
@@ -338,10 +338,10 @@ def _get_medium_business_preset() -> MMMDataConfig:
             saturation_fun="hill_function",
             saturation_kwargs={"slope": [1, 1.5, 1, 2], "kappa": 0.7}
         ),
-        seed=2025_07_15
+        seed=seed
     )
 
-def _get_large_business_preset() -> MMMDataConfig:
+def _get_large_business_preset(seed: int) -> MMMDataConfig:
     """Preset for large business with many channels and regions."""
     return MMMDataConfig(
         n_periods=131, # 2.5 years
@@ -463,7 +463,7 @@ def _get_large_business_preset() -> MMMDataConfig:
             saturation_fun="hill_function",
             saturation_kwargs={"slope": [1, 1.5, 1, 2, 1, 1, 1, 1], "kappa": 0.7}
         ),
-        seed=2025_07_15
+        seed=seed
     )
 
 
