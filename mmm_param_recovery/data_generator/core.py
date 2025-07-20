@@ -209,17 +209,17 @@ def _generate_channel_spend_data(
         region_data = pd.DataFrame(index=pd.MultiIndex.from_product([time_index, [region_name]], names=['date', 'geo']))
         
         for i, channel in enumerate(regional_channels):
-                # Generate independent spend pattern for this region
-                # Use region-specific seed for independence
-                region_seed = config.seed + region_idx * 1000 if config.seed is not None else None
-                
-                base_spend = generate_channel_spend(
-                    channel, time_index, region_seed
-                )
-                
-                # Use consistent x{i+1} format for channel columns
-                column_name = f'x{i+1}_{channel.name}' if channel.name != "" else f'x{i+1}'
-                region_data[column_name] = base_spend
+            # Generate independent spend pattern for this region
+            # Use region-specific seed for independence
+            region_seed = config.seed + region_idx * 1000 + i * 100 if config.seed is not None else None
+            
+            base_spend = generate_channel_spend(
+                channel, time_index, region_seed
+            )
+            
+            # Use consistent x{i+1} format for channel columns
+            column_name = f'x{i+1}_{channel.name}' if channel.name != "" else f'x{i+1}'
+            region_data[column_name] = base_spend
             
         
         regional_dataframes.append(region_data)

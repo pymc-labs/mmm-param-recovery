@@ -249,10 +249,10 @@ def _get_small_business_preset(seed: int) -> MMMDataConfig:
             ],
             saturation_fun="hill_function",
             saturation_kwargs =[
-                {"slope": 1, "kappa": 0.7}, 
-                {"slope": 1.5, "kappa": 0.7}, 
-                {"slope": 1, "kappa": 0.7}, 
-                {"slope": 2, "kappa": 0.7}
+                {"slope": 1, "kappa": 1}, 
+                {"slope": 1.5, "kappa": 2.5}, 
+                {"slope": 1, "kappa": 1.5}, 
+                {"slope": 2, "kappa": 3.5}
             ],
         ),
         seed=seed,
@@ -352,10 +352,12 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
             ],
             saturation_fun="hill_function",
             saturation_kwargs=[
-                {"slope": 1, "kappa": 0.7},
-                {"slope": 1.5, "kappa": 0.7},
-                {"slope": 1, "kappa": 0.7},
-                {"slope": 2, "kappa": 0.7},
+                {"slope": 1, "kappa": 3},
+                {"slope": 1.5, "kappa": 2.5},
+                {"slope": 0.8, "kappa": 4},
+                {"slope": 2, "kappa": 5},
+                {"slope": .4, "kappa": 3.5}, # 
+                {"slope": 1.5, "kappa": 12.5},
             ],
         ),
         seed=seed
@@ -364,7 +366,7 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
 def _get_large_business_preset(seed: int) -> MMMDataConfig:
     """Preset for large business with many channels and regions."""
     return MMMDataConfig(
-        n_periods=131, # 2.5 years
+        n_periods=156, # 3 years
         channels=[
             ChannelConfig(
                 name="Search-Ads",
@@ -472,8 +474,11 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
             )
         ],
         regions=RegionConfig(
-            n_regions=5,
-            region_names=["geo_a", "geo_b", "geo_c", "geo_d", "geo_e"],
+            n_regions=8,
+            region_names=[
+                "geo_a", "geo_b", "geo_c", "geo_d",
+                "geo_e", "geo_f", "geo_g", "geo_h"
+                ],
             base_sales_rate=1000000.0,
             sales_volatility=0.05,
         ),
@@ -486,19 +491,19 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 {"alpha": 0.3},
                 {"alpha": 0.2},
                 {"alpha": 0.1},
+                {"alpha": 0.05},
                 {"alpha": 0.1},
-                {"alpha": 0.1},
-            ],
+                ],
             saturation_fun="hill_function",
             saturation_kwargs=[
-                {"slope": 1, "kappa": 0.7},
-                {"slope": 1.5, "kappa": 0.7},
-                {"slope": 1, "kappa": 0.7},
+                {"slope": 1, "kappa": 2},
+                {"slope": 1.5, "kappa": 4},
+                {"slope": 0.8, "kappa": 0.55},
                 {"slope": 2, "kappa": 0.7},
-                {"slope": 1, "kappa": 0.7},
-                {"slope": 1, "kappa": 0.7},
-                {"slope": 1, "kappa": 0.7},
-                {"slope": 1, "kappa": 0.7},
+                {"slope": 1, "kappa": 4},
+                {"slope": 0.8, "kappa": 12},
+                {"slope": 0.5, "kappa": 5},
+                {"slope": 1.2, "kappa": 9},
             ],
         ),
         seed=seed

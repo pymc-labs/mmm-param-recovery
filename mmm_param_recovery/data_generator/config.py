@@ -42,7 +42,6 @@ class ChannelConfig:
     
     # Effectiveness parameters
     base_effectiveness: float = 0.5  # Base effectiveness multiplier
-    effectiveness_trend: float = 0.0  # Trend in effectiveness over time
     
     def __post_init__(self):
         """Validate configuration parameters."""
@@ -122,9 +121,8 @@ class RegionConfig:
     
     # Regional variation parameters
     baseline_variation: float = 0.1  # Factor for regional baseline variation (0.1 = ±10%)
-    channel_scale_variation: float = 0.05  # Factor for channel spend scaling variation (0.05 = ±5%)
-    effectiveness_variation: float = 0.08  # Factor for channel effectiveness variation (0.08 = ±8%)
-    transform_variation: float = 0.03  # Factor for transformation parameter variation (0.03 = ±3%)
+    channel_param_variation: float = 0.1  # Factor for channel spend scaling variation (0.05 = ±5%)
+    transform_variation: float = 0.1  # Factor for transformation parameter variation (0.03 = ±3%)
     
     def __post_init__(self):
         """Validate region configuration."""
@@ -140,10 +138,8 @@ class RegionConfig:
         # Validate variation factors
         if not 0 <= self.baseline_variation <= 1:
             raise ValueError("baseline_variation_factor must be between 0 and 1")
-        if not 0 <= self.channel_scale_variation <= 1:
-            raise ValueError("channel_scale_variation must be between 0 and 1")
-        if not 0 <= self.effectiveness_variation <= 1:
-            raise ValueError("effectiveness_variation must be between 0 and 1")
+        if not 0 <= self.channel_param_variation <= 1:
+            raise ValueError("channel_param_variation must be between 0 and 1")
         if not 0 <= self.transform_variation <= 1:
             raise ValueError("transform_variation must be between 0 and 1")
         
@@ -204,8 +200,7 @@ class ControlConfig(ChannelConfig):
             min_active_periods=channel_config.min_active_periods,
             max_active_periods=channel_config.max_active_periods,
             custom_pattern_func=channel_config.custom_pattern_func,
-            base_effectiveness=channel_config.base_effectiveness,
-            effectiveness_trend=channel_config.effectiveness_trend
+            base_effectiveness=channel_config.base_effectiveness
         )
     
     def __post_init__(self):
@@ -314,8 +309,7 @@ DEFAULT_CONFIG = MMMDataConfig(
         n_regions=3,
         region_names=["geo_a", "geo_b", "geo_c"],
         baseline_variation=0.1,
-        channel_scale_variation=0.05,
-        effectiveness_variation=0.08,
+        channel_param_variation=0.05,
         transform_variation=0.03
     ),
     transforms=TransformConfig(

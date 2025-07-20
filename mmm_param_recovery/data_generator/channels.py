@@ -19,7 +19,7 @@ def _generate_linear_trend_pattern(
     seed: Optional[int] = None
 ) -> np.ndarray:
     """
-    Generate linear trend channel pattern with noise.
+    Generate a channel pattern with a AR(2) process and a linear trend.
     
     Parameters
     ----------
@@ -50,10 +50,12 @@ def _generate_linear_trend_pattern(
     
     # Add noise with specified volatility
     noise_std = base_spend * spend_volatility
-    noise = rng.normal(0, noise_std, n_periods)
-    
+    spend = rng.normal(0, noise_std, n_periods)
+    for t in range(2, n_periods):
+        spend[t] += max(0, 0.7 * spend[t-1] + 0.3 * spend[t-2])
     # Combine trend and noise, ensure non-negative values
-    spend = np.clip(linear_trend + noise, 0, None)
+    spend += linear_trend
+    spend = np.clip(spend, 0, None)
     
     return spend.astype(float)
 
@@ -97,22 +99,29 @@ def _generate_seasonal_pattern(
     n_periods = len(time_index)
     
     # Generate seasonal pattern based on day of year
-    days_in_year = 365.25
     day_of_year = time_index.dayofyear
     
     # Create seasonal pattern:
     #   - with seasonal_phase = 0, peaks in summer, and drops in winter
-    seasonality = 1 - np.cos(seasonal_phase + 2 * np.pi * day_of_year / days_in_year)
+    seasonality = 1 - np.cos(seasonal_phase + 2 * np.pi * day_of_year / 365.25)
     
-    # Scale seasonality to base_spend range
-    seasonal_spend = base_spend + base_spend * seasonal_amplitude * seasonality
-    
-    # Add noise with specified volatility
-    noise_std = base_spend * spend_volatility
-    noise = rng.normal(0, noise_std, n_periods)
-    
-    # Combine seasonal pattern and noise, ensure non-negative values
-    spend = np.clip(seasonal_spend + noise, 0, None)
+    spend = _generate_linear_trend_pattern(
+        n_periods=n_periods,
+        base_spend=base_spend,
+        spend_trend=0,
+        spend_volatility=spend_volatility,
+        seed=seed
+    )
+
+    seasonal_spend = _generate_linear_trend_pattern(
+        n_periods=n_periods,
+        base_spend=base_spend,
+        spend_trend=0,
+        spend_volatility=spend_volatility,
+        seed=seed
+    )
+
+    spend += seasonal_spend * seasonal_amplitude * seasonality
     
     return spend.astype(float)
 
@@ -156,31 +165,22 @@ def _generate_delayed_start_pattern(
     else:
         rng = np.random.default_rng()
     
-    spend = np.zeros(n_periods, dtype=float)
-    
+    spend = _generate_linear_trend_pattern(
+        n_periods=n_periods,
+        base_spend=base_spend,
+        spend_trend=0,
+        spend_volatility=spend_volatility,
+        seed=seed
+    )
+
     # Ramp up period
     if ramp_up_periods > 0:
         ramp_end = min(start_period + ramp_up_periods, n_periods, end_period)
         ramp_periods = ramp_end - start_period
         
-        for i in range(ramp_periods):
-            period = start_period + i
-            # Linear ramp from 0 to base_spend
-            ramp_factor = (i + 1) / ramp_periods
-            spend[period] = base_spend * ramp_factor
-    
-    # Full spend after ramp up
-    full_spend_start = start_period + ramp_up_periods
-    if full_spend_start < min(n_periods, end_period):
-        spend[full_spend_start:] = base_spend
-    
-    # Add noise with specified volatility (only to non-zero periods)
-    noise_std = base_spend * spend_volatility
-    noise = rng.normal(0, noise_std, n_periods)
-    
-    # Apply noise only to periods with spend > 0
-    spend = np.where(spend > 0, spend + noise, spend)
-    spend = np.clip(spend, 0, None)
+        ramp_factor = np.linspace(0, 1, ramp_periods)
+        spend[:start_period] = 0
+        spend[start_period:ramp_end] *= ramp_factor
     
     return spend.astype(float)
 

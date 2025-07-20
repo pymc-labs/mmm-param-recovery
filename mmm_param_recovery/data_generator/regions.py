@@ -50,7 +50,7 @@ def generate_regional_baseline(
     
     # Generate regional baseline variation
     baseline_variation = 1.0 + np.random.uniform(
-        -regions.baseline_variation, 
+        -regions.baseline_variation,
         regions.baseline_variation
     )
     
@@ -118,33 +118,23 @@ def generate_regional_channel_variations(
     regional_channels = []
     
     for i, base_channel in enumerate(base_channels):
-        # Create regional variation factors
-        spend_scale = 1.0 + np.random.uniform(
-            -regions.channel_scale_variation, 
-            regions.channel_scale_variation
-        )
-        effectiveness_scale = 1.0 + np.random.uniform(
-            -regions.effectiveness_variation, 
-            regions.effectiveness_variation
-        )
         
         # Create new channel config with regional variations
         regional_channel = ChannelConfig(
             name=base_channel.name,
             pattern=base_channel.pattern,
-            base_spend=base_channel.base_spend * spend_scale,
-            spend_trend=base_channel.spend_trend,
-            spend_volatility=base_channel.spend_volatility,
-            seasonal_amplitude=base_channel.seasonal_amplitude,
-            seasonal_phase=base_channel.seasonal_phase,
+            base_spend=base_channel.base_spend * _vary_param(regions.channel_param_variation),
+            spend_trend=base_channel.spend_trend * _vary_param(regions.channel_param_variation),
+            spend_volatility=base_channel.spend_volatility * _vary_param(regions.channel_param_variation),
+            seasonal_amplitude=base_channel.seasonal_amplitude * _vary_param(regions.channel_param_variation),
+            seasonal_phase=base_channel.seasonal_phase * _vary_param(regions.channel_param_variation),
             start_period=base_channel.start_period,
             ramp_up_periods=base_channel.ramp_up_periods,
-            activation_probability=base_channel.activation_probability,
+            activation_probability=base_channel.activation_probability * _vary_param(regions.channel_param_variation),
             min_active_periods=base_channel.min_active_periods,
             max_active_periods=base_channel.max_active_periods,
             custom_pattern_func=base_channel.custom_pattern_func,
-            base_effectiveness=base_channel.base_effectiveness * effectiveness_scale,
-            effectiveness_trend=base_channel.effectiveness_trend
+            base_effectiveness=base_channel.base_effectiveness * _vary_param(regions.channel_param_variation)
         )
         
         regional_channels.append(regional_channel)
@@ -190,11 +180,7 @@ def generate_regional_transform_variations(
     if isinstance(base_transforms.adstock_kwargs, dict):
         for key, value in base_transforms.adstock_kwargs.items():
             if isinstance(value, float):
-                transform_scale = 1.0 + np.random.uniform(
-                    -regions.transform_variation, 
-                    regions.transform_variation
-                )
-                regional_adstock_kwargs[key] = value * transform_scale
+                regional_adstock_kwargs[key] = value * _vary_param(regions.transform_variation)
             else:
                 regional_adstock_kwargs[key] = value
     else:
@@ -205,11 +191,7 @@ def generate_regional_transform_variations(
     if isinstance(base_transforms.saturation_kwargs, dict):
         for key, value in base_transforms.saturation_kwargs.items():
             if isinstance(value, float):
-                transform_scale = 1.0 + np.random.uniform(
-                    -regions.transform_variation, 
-                    regions.transform_variation
-                )
-                regional_saturation_kwargs[key] = value * transform_scale
+                regional_saturation_kwargs[key] = value * _vary_param(regions.transform_variation)
             else:
                 regional_saturation_kwargs[key] = value
     else:
@@ -220,4 +202,7 @@ def generate_regional_transform_variations(
         adstock_kwargs=regional_adstock_kwargs,
         saturation_fun=base_transforms.saturation_fun,
         saturation_kwargs=regional_saturation_kwargs
-    ) 
+    )
+
+def _vary_param(variation: float):
+    return 1.0 + np.random.uniform(-variation, variation)
