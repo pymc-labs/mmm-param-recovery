@@ -7,17 +7,14 @@ name = "mmm-param-recovery"
 version = "0.1.0"
 description = "A package for generating synthetic MMM (Media Mix Modeling) datasets for parameter recovery studies"
 authors = [{name = "Thomas Wiecki", email = "thomas.wiecki@gmail.com"}]
-requires-python = ">=3.8"
-dependencies = [
-    "pymc-marketing>=0.14.0,<0.15",
-    "meridian>=0.4.0,<0.5",
-]
+requires-python = ">=3.12"
+dependencies = ["google-meridian>=1.1.6,<2"]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.4.1,<9",
-    "ruff>=0.3.0",
-    "pre-commit>=3.0.0",
+    "pytest",
+    "ruff",
+    "pre-commit",
 ]
 
 [tool.setuptools.packages.find]
@@ -32,8 +29,24 @@ platforms = ["osx-arm64", "linux-64"]
 mmm-param-recovery = { path = ".", editable = true }
 
 [tool.pixi.dependencies]
-pytest = ">=8.4.1,<9"
-ipykernel = ">=6.29.5,<7"
+pytest = "*"
+ipykernel = "*"
+jupytext = "*"
+jupyterlab = "*"
+arviz = "*"
+matplotlib = "*"
+numpy = "*"
+pandas = "*"
+pymc = "*"
+seaborn = "*"
+tensorflow = "*"
+tensorflow-probability = "*"
+xarray = "*"
+pympler = "*"
+statsmodels = "*"
+pymc-marketing = "==0.15.0"
+jax = ">=0.5.2,<0.6"
+numpyro = ">=0.18.0,<0.19"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
