@@ -80,7 +80,7 @@ def _get_basic_preset(seed: int) -> MMMDataConfig:
             adstock_fun="geometric_adstock",
             adstock_kwargs={"alpha": 0.5},
             saturation_fun="hill_function",
-            saturation_kwargs={"slope": 1.0, "kappa": 1500.0}
+            saturation_kwargs={"slope": 1.0, "kappa": 0.15}
         ),
         seed=seed
     )
@@ -125,7 +125,7 @@ def _get_seasonal_preset(seed: int) -> MMMDataConfig:
             adstock_fun="geometric_adstock",
             adstock_kwargs={"alpha": 0.6},
             saturation_fun="hill_function",
-            saturation_kwargs={"slope": 1.0, "kappa": 2000.0}
+            saturation_kwargs={"slope": 1.0, "kappa": 0.2}
         ),
         seed=seed
     )
@@ -166,7 +166,7 @@ def _get_multi_region_preset(seed: int) -> MMMDataConfig:
             adstock_fun="geometric_adstock",
             adstock_kwargs={"alpha": 0.55},
             saturation_fun="hill_function",
-            saturation_kwargs={"slope": 1.0, "kappa": 1800.0}
+            saturation_kwargs={"slope": 1.0, "kappa": 0.8}
         ),
         seed=seed
     )
@@ -183,6 +183,7 @@ def _get_small_business_preset(seed: int) -> MMMDataConfig:
                 spend_volatility=0.02,
                 base_spend=100.0,
                 spend_trend=0.004, # about 20% per year
+                base_effectiveness=0.5,
             ),
             ChannelConfig(
                 name="Social-Media",
@@ -190,7 +191,8 @@ def _get_small_business_preset(seed: int) -> MMMDataConfig:
                 base_spend=500.0,
                 spend_volatility=0.05,
                 seasonal_amplitude=0.4,
-                seasonal_phase=0.5
+                seasonal_phase=0.5,
+                base_effectiveness=0.2,
             ),
             ChannelConfig(
                 name="Local-Ads",
@@ -200,6 +202,7 @@ def _get_small_business_preset(seed: int) -> MMMDataConfig:
                 activation_probability=0.3,
                 min_active_periods=2,
                 max_active_periods=4,
+                base_effectiveness=0.1,
             ),
             ChannelConfig(
                 name="Email",
@@ -209,6 +212,7 @@ def _get_small_business_preset(seed: int) -> MMMDataConfig:
                 activation_probability=0.2,
                 min_active_periods=1,
                 max_active_periods=1,
+                base_effectiveness=0.2,
             )
         ],
         control_variables=[
@@ -250,9 +254,9 @@ def _get_small_business_preset(seed: int) -> MMMDataConfig:
             saturation_fun="hill_function",
             saturation_kwargs =[
                 {"slope": 1, "kappa": 1}, 
-                {"slope": 1.5, "kappa": 2.5}, 
+                {"slope": 1.5, "kappa": 0.8}, 
                 {"slope": 1, "kappa": 1.5}, 
-                {"slope": 2, "kappa": 3.5}
+                {"slope": 2, "kappa": 0.5}
             ],
         ),
         seed=seed,
@@ -271,6 +275,7 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
                 spend_volatility=0.02,
                 base_spend=300.0,
                 spend_trend=0.002, # about 20% per year
+                base_effectiveness=0.3,
             ),
             ChannelConfig(
                 name="Search-Ads-Brand",
@@ -278,6 +283,7 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
                 spend_volatility=0.01,
                 base_spend=100.0,
                 spend_trend=0.002, # about 20% per year
+                base_effectiveness=0.1,
             ),
             ChannelConfig(
                 name="Video",
@@ -286,6 +292,7 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
                 spend_volatility=0.05,
                 start_period=25,
                 ramp_up_periods=10,
+                base_effectiveness=0.4,
             ),
             ChannelConfig(
                 name="Social-Media",
@@ -293,7 +300,8 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
                 base_spend=500.0,
                 spend_volatility=0.05,
                 seasonal_amplitude=0.4,
-                seasonal_phase=0.5
+                seasonal_phase=0.5,
+                base_effectiveness=0.1,
             ),
             ChannelConfig(
                 name="Display-Ads",
@@ -303,6 +311,7 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
                 activation_probability=0.3,
                 min_active_periods=2,
                 max_active_periods=4,
+                base_effectiveness=0.05,
             ),
             ChannelConfig(
                 name="Email",
@@ -312,6 +321,7 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
                 activation_probability=0.2,
                 min_active_periods=1,
                 max_active_periods=1,
+                base_effectiveness=0.05,
             )
         ],
         control_variables=[
@@ -352,12 +362,12 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
             ],
             saturation_fun="hill_function",
             saturation_kwargs=[
-                {"slope": 1, "kappa": 3},
-                {"slope": 1.5, "kappa": 2.5},
-                {"slope": 0.8, "kappa": 4},
-                {"slope": 2, "kappa": 5},
-                {"slope": .4, "kappa": 3.5}, # 
-                {"slope": 1.5, "kappa": 12.5},
+                {"slope": 1, "kappa": 0.3},
+                {"slope": 1.5, "kappa": 1.5},
+                {"slope": 0.8, "kappa": 0.4},
+                {"slope": 2, "kappa": 0.5},
+                {"slope": .4, "kappa": 2}, # 
+                {"slope": 1.5, "kappa": 1.25},
             ],
         ),
         seed=seed
@@ -374,6 +384,7 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 spend_volatility=0.02,
                 base_spend=300.0,
                 spend_trend=0.002, # about 20% per year
+                base_effectiveness=0.1,
             ),
             ChannelConfig(
                 name="Search-Ads-Brand",
@@ -381,6 +392,7 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 spend_volatility=0.01,
                 base_spend=100.0,
                 spend_trend=0.002, # about 20% per year
+                base_effectiveness=0.2,
             ),
             ChannelConfig(
                 name="Video",
@@ -389,6 +401,7 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 spend_volatility=0.05,
                 start_period=25,
                 ramp_up_periods=10,
+                base_effectiveness=0.1,
             ),
             ChannelConfig(
                 name="Video-2",
@@ -397,6 +410,7 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 spend_volatility=0.1,
                 start_period=75,
                 end_period=125,
+                base_effectiveness=0.3,
             ),
             ChannelConfig(
                 name="Social-Media",
@@ -404,7 +418,8 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 base_spend=1000.0,
                 spend_volatility=0.1,
                 seasonal_amplitude=0.4,
-                seasonal_phase=0.5
+                seasonal_phase=0.5,
+                base_effectiveness=0.05,
             ),
             ChannelConfig(
                 name="Social-Media-2",
@@ -412,7 +427,8 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 base_spend=1000.0,
                 spend_volatility=0.1,
                 seasonal_amplitude=0.2,
-                seasonal_phase=0
+                seasonal_phase=0,
+                base_effectiveness=0.23,
             ),
             ChannelConfig(
                 name="Display-Ads",
@@ -422,6 +438,7 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 activation_probability=0.3,
                 min_active_periods=2,
                 max_active_periods=4,
+                base_effectiveness=0.09,
             ),
             ChannelConfig(
                 name="Influencer",
@@ -431,6 +448,7 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 activation_probability=0.1,
                 min_active_periods=2,
                 max_active_periods=6,
+                base_effectiveness=0.03,
             )
         ],
         control_variables=[
@@ -496,14 +514,14 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 ],
             saturation_fun="hill_function",
             saturation_kwargs=[
-                {"slope": 1, "kappa": 2},
-                {"slope": 1.5, "kappa": 4},
+                {"slope": 1, "kappa": 1},
+                {"slope": 1.5, "kappa": 0.4},
                 {"slope": 0.8, "kappa": 0.55},
                 {"slope": 2, "kappa": 0.7},
-                {"slope": 1, "kappa": 4},
-                {"slope": 0.8, "kappa": 12},
-                {"slope": 0.5, "kappa": 5},
-                {"slope": 1.2, "kappa": 9},
+                {"slope": 1, "kappa": 0.4},
+                {"slope": 0.8, "kappa": 1.2},
+                {"slope": 0.5, "kappa": 0.5},
+                {"slope": 1.2, "kappa": 0.9},
             ],
         ),
         seed=seed

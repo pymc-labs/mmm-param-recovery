@@ -311,7 +311,7 @@ def _apply_transformations_to_data(
                 )
                 
                 # Store in the region DataFrame with consistent column naming
-                region_data["contribution_" + column_name] = transformed_spend * config.regions.base_sales_rate
+                region_data["contribution_" + column_name] = channel.base_effectiveness * transformed_spend * config.regions.base_sales_rate
                 
                 # Track channel parameters
                 if channel.name not in transformation_params['channels']:
