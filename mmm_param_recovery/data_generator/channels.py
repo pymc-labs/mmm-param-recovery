@@ -46,15 +46,19 @@ def _generate_linear_trend_pattern(
     
     # Generate linear trend from base_spend to base_spend + trend
     trend_range = spend_trend * n_periods
-    linear_trend = np.linspace(base_spend, base_spend + trend_range, n_periods)
+    linear_trend = np.linspace(0, trend_range, n_periods)
     
     # Add noise with specified volatility
     noise_std = base_spend * spend_volatility
     spend = rng.normal(0, noise_std, n_periods)
     for t in range(2, n_periods):
-        spend[t] += max(0, 0.7 * spend[t-1] + 0.3 * spend[t-2])
+
+        spend[t] = max(0, 0.7 * spend[t-1] + 0.3 * spend[t-2] +
+            # Modify AR(2) process to simulate campaign-like spending
+            rng.normal(-0.1 * spend[t-1], noise_std, 1)
+            )
     # Combine trend and noise, ensure non-negative values
-    spend += linear_trend
+    spend *= (1 + linear_trend)
     spend = np.clip(spend, 0, None)
     
     return spend.astype(float)
@@ -101,18 +105,11 @@ def _generate_seasonal_pattern(
     # Generate seasonal pattern based on day of year
     day_of_year = time_index.dayofyear
     
-    # Create seasonal pattern:
-    #   - with seasonal_phase = 0, peaks in summer, and drops in winter
-    seasonality = 1 - np.cos(seasonal_phase + 2 * np.pi * day_of_year / 365.25)
-    
-    spend = _generate_linear_trend_pattern(
-        n_periods=n_periods,
-        base_spend=base_spend,
-        spend_trend=0,
-        spend_volatility=spend_volatility,
-        seed=seed
-    )
-
+    # Create seasonal pattern by scaling the base spend pattern
+    # with a cosine function
+    seasonality = np.cos(seasonal_phase + 4 * np.pi * day_of_year / 365.25)
+     
+    # Generate the base spend pattern
     seasonal_spend = _generate_linear_trend_pattern(
         n_periods=n_periods,
         base_spend=base_spend,
@@ -120,8 +117,9 @@ def _generate_seasonal_pattern(
         spend_volatility=spend_volatility,
         seed=seed
     )
-
-    spend += seasonal_spend * seasonal_amplitude * seasonality
+    # Scale the base spend pattern by the seasonal amplitude and seasonality
+    # clip to ensure non-negative values.
+    spend = np.clip(seasonal_spend * seasonal_amplitude * seasonality, 0, None)
     
     return spend.astype(float)
 

@@ -57,28 +57,22 @@ def generate_regional_baseline(
     # Create time-based baseline with trend
     time_array = np.arange(n_periods)
     
-    # Base sales component
-    base_sales = regions.base_sales_rate * baseline_variation * np.ones(n_periods)
-    
     # Trend component
-    trend = regions.base_sales_rate * baseline_variation * regions.sales_trend * time_array
+    trend =  regions.sales_trend * time_array
     
     # Seasonal component
     seasonal_period = 52  # Weekly data, annual seasonality
-    seasonal = regions.base_sales_rate * baseline_variation * regions.seasonal_amplitude * np.sin(2 * np.pi * time_array / seasonal_period)
-    
-    # Combine components
-    total = base_sales + trend + seasonal
-    
+    seasonal = regions.seasonal_amplitude * np.sin(2 * np.pi * time_array / seasonal_period)
+
     # Add noise
     noise = np.random.normal(0, regions.sales_volatility, n_periods)
-    total *= (1 + noise)
+    total = regions.base_sales_rate * baseline_variation * (1 + trend + seasonal + noise)
     
     # Ensure non-negative
     total = np.clip(total, 0, None)
     
     return {
-        'base_sales': base_sales,
+        'base_sales': regions.base_sales_rate * (1 + noise) ,
         'trend': trend,
         'seasonal': seasonal,
         'total': total

@@ -121,8 +121,8 @@ class RegionConfig:
     
     # Regional variation parameters
     baseline_variation: float = 0.1  # Factor for regional baseline variation (0.1 = ±10%)
-    channel_param_variation: float = 0.1  # Factor for channel spend scaling variation (0.05 = ±5%)
-    transform_variation: float = 0.1  # Factor for transformation parameter variation (0.03 = ±3%)
+    channel_param_variation: float = 0.1  # Factor for channel spend scaling variation (0.1 = ±10%)
+    transform_variation: float = 0.1  # Factor for transformation parameter variation (0.1 = ±10%)
     
     def __post_init__(self):
         """Validate region configuration."""

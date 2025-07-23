@@ -123,7 +123,7 @@ def _get_seasonal_preset(seed: int) -> MMMDataConfig:
         ),
         transforms=TransformConfig(
             adstock_fun="geometric_adstock",
-            adstock_kwargs={"alpha": 0.6},
+            adstock_kwargs={"alpha": 0.6, "l_max": 8},
             saturation_fun="hill_function",
             saturation_kwargs={"slope": 1.0, "kappa": 0.2}
         ),
@@ -241,15 +241,15 @@ def _get_small_business_preset(seed: int) -> MMMDataConfig:
             n_regions=1,
             region_names=["Local"],
             base_sales_rate=5000.0,
-            sales_volatility=0.4,
+            sales_volatility=0.1,
         ),
         transforms=TransformConfig(
             adstock_fun="geometric_adstock",
             adstock_kwargs=[
-                {"alpha": 0}, 
-                {"alpha": 0.2}, 
-                {"alpha": 0.4}, 
-                {"alpha": 0.3}
+                {"alpha": 0, "l_max": 8}, 
+                {"alpha": 0.2, "l_max": 8}, 
+                {"alpha": 0.4, "l_max": 8}, 
+                {"alpha": 0.3, "l_max": 8}
             ],
             saturation_fun="hill_function",
             saturation_kwargs =[
@@ -350,15 +350,15 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
             n_regions=2,
             region_names=["geo_a", "geo_b"],
             base_sales_rate=5000.0,
-            sales_volatility=0.7,
+            sales_volatility=0.1,
         ),
         transforms=TransformConfig(
             adstock_fun="geometric_adstock",
             adstock_kwargs=[
-                {"alpha": 0}, 
-                {"alpha": 0.2}, 
-                {"alpha": 0.4}, 
-                {"alpha": 0.3}
+                {"alpha": 0, "l_max": 8}, 
+                {"alpha": 0.2, "l_max": 8}, 
+                {"alpha": 0.4, "l_max": 8}, 
+                {"alpha": 0.3, "l_max": 8}
             ],
             saturation_fun="hill_function",
             saturation_kwargs=[
@@ -427,7 +427,7 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 base_spend=1000.0,
                 spend_volatility=0.9,
                 seasonal_amplitude=0.2,
-                seasonal_phase=0,
+                seasonal_phase=0.125 * 2 * pi,
                 base_effectiveness=1.1,
             ),
             ChannelConfig(
@@ -497,20 +497,21 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 "geo_a", "geo_b", "geo_c", "geo_d",
                 "geo_e", "geo_f", "geo_g", "geo_h"
                 ],
-            base_sales_rate=1000000.0,
-            sales_volatility=0.5,
+            base_sales_rate=100000.0,
+            sales_volatility=0.1,
+            seasonal_amplitude=0.6
         ),
         transforms=TransformConfig(
             adstock_fun="geometric_adstock",
             adstock_kwargs=[
-                {"alpha": 0}, 
-                {"alpha": 0.2}, 
-                {"alpha": 0.4}, 
-                {"alpha": 0.3},
-                {"alpha": 0.2},
-                {"alpha": 0.1},
-                {"alpha": 0.05},
-                {"alpha": 0.1},
+                {"alpha": 0, "l_max": 8}, 
+                {"alpha": 0.2, "l_max": 8}, 
+                {"alpha": 0.4, "l_max": 8}, 
+                {"alpha": 0.3, "l_max": 8},
+                {"alpha": 0.2, "l_max": 8},
+                {"alpha": 0.1, "l_max": 8},
+                {"alpha": 0.05, "l_max": 8},
+                {"alpha": 0.1, "l_max": 8},
                 ],
             saturation_fun="hill_function",
             saturation_kwargs=[
