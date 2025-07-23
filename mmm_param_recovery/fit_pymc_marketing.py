@@ -1,4 +1,5 @@
 import argparse
+from memory_profiler import profile
 import numpy as np
 import pandas as pd
 import pymc as pm
@@ -37,7 +38,7 @@ def build_model(df: pd.DataFrame) -> MMM:
 
     # TODO: Make configurable throught json.
     mmm = MMM(
-        date_column="date",
+        date_column="time",
         target_column="y",
         channel_columns=channel_columns,
         control_columns=control_columns,
@@ -71,19 +72,9 @@ def build_model(df: pd.DataFrame) -> MMM:
 
     return mmm
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--preset_name", type=str, required=True)
-    parser.add_argument("--seed", type=int, required=False, default=20250723)
-    args = parser.parse_args()
-    rng: np.random.Generator = np.random.default_rng(seed=args.seed)
-    
-    df = pd.read_csv(f"data/test_data/test_data_{args.preset_name}_{args.seed}.csv").rename(columns={"time": "date"})
 
-    x_train = df.drop(columns=["y"])
-    y_train = df["y"]
-    # TODO: make configurable through config file.
-    mmm_model = build_model(df)
+@profile
+def fit_model(mmm: MMM, x_train: pd.DataFrame, y_train: pd.Series, rng: np.random.Generator) -> MMM:
     mmm_model.fit(
         X=x_train,
         y=y_train,
@@ -101,5 +92,21 @@ if __name__ == "__main__":
         combined=True,
         random_seed=rng,
     )
-
+    return mmm
+    
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--preset_name", type=str, required=True)
+    parser.add_argument("--seed", type=int, required=False, default=20250723)
+    args = parser.parse_args()
+    rng: np.random.Generator = np.random.default_rng(seed=args.seed)
+    
+    df = pd.read_csv(f"data/test_data/test_data_{args.preset_name}_{args.seed}.csv")
+    df["time"] = pd.to_datetime(df["time"])
+    
+    x_train = df.drop(columns=["y"])
+    y_train = df["y"]
+    # TODO: make configurable through config file.
+    mmm_model = build_model(df)
+    mmm_model = fit_model(mmm_model, x_train, y_train, rng)
     mmm_model.save(f"data/fits/pymc_marketing_{args.preset_name}_{args.seed}.nc")

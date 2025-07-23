@@ -49,6 +49,7 @@ jax = ">=0.5.2,<0.6"
 numpyro = ">=0.18.0,<0.19"
 nutpie = ">=0.15.2,<0.16"
 ipywidgets = ">=8.1.7,<9"
+memory_profiler = ">=0.61.0,<0.62"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -72,8 +73,11 @@ cmd = """echo {% if "meridian" in mmm_library %}pkl{% else %}nc{% endif %}"""
 
 [tool.pixi.tasks.fit_model]
 args = ["mmm_library", "preset_name", { arg = "seed", default = "42"}]
-cmd = "python mmm_param_recovery/fit_{{ mmm_library }}.py --preset_name {{ preset_name }} --seed {{ seed }}"    
-inputs = ["data/test_data/test_data_{{ preset_name }}_{{ seed }}.csv"]
+cmd = "mprof run --include-children --python -o data/results/mprofile_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.dat mmm_param_recovery/fit_{{ mmm_library }}.py --preset_name {{ preset_name }} --seed {{ seed }}"    
+inputs = [
+    "data/test_data/test_data_{{ preset_name }}_{{ seed }}.csv",
+    "mmm_param_recovery/fit_{{ mmm_library }}.py"
+    ]
 # output broken for some reason.
 # outputs = ["data/fits/{{ mmm_library }}_{{ preset_name }}_{{ seed }}.$(pixi run mmm_file_type {{ mmm_library }})"]
 depends-on = [{ "task" = "make_test_data", "args" = ["{{ preset_name }}", "{{ seed }}"] }]

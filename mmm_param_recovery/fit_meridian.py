@@ -1,5 +1,6 @@
 import argparse
 ## Fit a meridian model with the specfied dataset.
+from memory_profiler import profile
 from meridian import constants
 from meridian.analysis import analyzer, formatter, optimizer, summarizer, visualizer
 from meridian.data import (
@@ -74,7 +75,7 @@ def make_priors(df: pd.DataFrame, data: input_data.InputData, channel_columns = 
         )
     )
 
-def make_model(data: input_data.InputData, prior: prior_distribution.PriorDistribution, ) -> spec.ModelSpec: 
+def make_model(data: input_data.InputData, prior: prior_distribution.PriorDistribution, ) -> model.Meridian:
     n_time = len(data.time)
     knots = np.arange(0, n_time, 26).tolist()
 
@@ -97,19 +98,8 @@ def make_model(data: input_data.InputData, prior: prior_distribution.PriorDistri
 
     return model.Meridian(input_data=data, model_spec=model_spec)
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--preset_name", type=str, required=True)
-    parser.add_argument("--seed", type=int, required=False, default=20250723)
-    args = parser.parse_args()
-    
-    df = pd.read_csv(f"data/test_data/test_data_{args.preset_name}_{args.seed}.csv")
-    df["population"] = 1
-    channel_columns = [col for col in df.columns if col.startswith("x")]
-
-    data = build_data(df, channel_columns)
-    priors = make_priors(df, data, channel_columns)
-    mmm = make_model(data, priors)
+@profile
+def fit_model(mmm: model.Meridian) -> model.Meridian:
     # Todo, control sampling parameters from a config file.
     mmm.sample_posterior(
         n_chains=4, 
@@ -117,6 +107,24 @@ if __name__ == "__main__":
         n_burnin=500, 
         n_keep=1000
     )
+    return mmm
 
-    model.save_mmm(mmm, f"data/fits/meridian_{args.preset_name}_{args.seed}.pkl")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--preset_name", type=str, required=True)
+    parser.add_argument("--seed", type=int, required=False, default=20250723)
+    args = parser.parse_args()
+
+    df = pd.read_csv(f"data/test_data/test_data_{args.preset_name}_{args.seed}.csv")
+    df["time"] = pd.to_datetime(df["time"])
+    df["population"] = 1
+    channel_columns = [col for col in df.columns if col.startswith("x")]
+
+    data = build_data(df, channel_columns)
+    priors = make_priors(df, data, channel_columns)
+    mmm = make_model(data, priors)
+
+    mmm = fit_model(mmm)
     
+    model.save_mmm(mmm, f"data/fits/meridian_{args.preset_name}_{args.seed}.pkl")
