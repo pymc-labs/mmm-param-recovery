@@ -47,6 +47,8 @@ statsmodels = "*"
 pymc-marketing = "==0.15.0"
 jax = ">=0.5.2,<0.6"
 numpyro = ">=0.18.0,<0.19"
+nutpie = ">=0.15.2,<0.16"
+ipywidgets = ">=8.1.7,<9"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -54,3 +56,33 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short" 
+
+[tool.pixi.tasks.make_test_data]
+cmd = "python mmm_param_recovery/make_test_data.py --preset_name {{preset_name}} --seed {{seed}}"
+args = ["preset_name", { arg = "seed", default = "42"}]
+inputs = ["mmm_param_recovery/data_generator/*", "mmm_param_recovery/make_test_data.py"]
+outputs = [
+    "data/test_data/test_data_{{ preset_name}}_{{ seed }}.csv",
+    "data/test_data/ground_truth_{{ preset_name}}_{{ seed }}.csv"
+]
+
+[tool.pixi.tasks.mmm_file_type]
+args = ["mmm_library"]
+cmd = """echo {% if "meridian" in {{ mmm_library}}%}pkl{% else %}nc"""
+
+[tool.pixi.tasks.fit_model]
+args = ["mmm_library", "preset_mame", { arg = "seed", default = "42"}]
+cmd = [
+    "python",
+    "mmm_param_recovery/fit_{{ mmm_library }}.py",
+    "--input",
+    "data/test_data/test_data_{{ preset_name}}_{{ seed }}.csv"
+    ]
+inputs = [
+    "data/test_data/test_data_{{ preset_name}}_{{ seed }}.csv",
+    "config/{{mmm_library}}.json"
+    ]
+outputs = [
+    "data/fits/{{ mmm_library }}_{{ preset_name }}_{{ seed }}.$(pixi task mmm_file_type {{ mmm_library }})"
+]
+
