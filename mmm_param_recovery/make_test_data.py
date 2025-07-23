@@ -22,5 +22,5 @@ if __name__ == "__main__":
     seed = args.seed
     assert data_dir.exists(), f"Data directory {data_dir} does not exist"
     data = make_test_data(preset_name, seed)
-    data["data"].rename({"date": "time"}).to_csv(data_dir / f"test_data_{preset_name}_{seed}.csv", index=False)
+    data["data"].rename(columns={"date": "time"}).to_csv(data_dir / f"test_data_{preset_name}_{seed}.csv", index=False)
     # data["ground_truth"].to_csv(data_dir / f"ground_truth_{preset_name}_{seed}.csv", index=False)
