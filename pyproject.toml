@@ -81,3 +81,25 @@ inputs = [
 # output broken for some reason.
 # outputs = ["data/fits/{{ mmm_library }}_{{ preset_name }}_{{ seed }}.$(pixi run mmm_file_type {{ mmm_library }})"]
 depends-on = [{ "task" = "make_test_data", "args" = ["{{ preset_name }}", "{{ seed }}"] }]
+
+[tool.pixi.tasks.plot_memory_profile]
+args = ["mmm_library", "preset_name", { arg = "seed", default = "42"}]
+cmd = [
+    "mprof",
+    "plot",
+    "data/results/mprofile_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.dat",
+    "-t",
+    "Sampling memory profile: {{mmm_library}}",
+    "-o",
+    "figures/mprof_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.png"
+    ]
+depends-on = [
+    { "task" = "fit_model", "args" = ["{{ mmm_library }}", "{{ preset_name }}", "{{ seed }}"] }
+]
+
+[tool.pixi.tasks.fit_both]
+args = ["preset_name", { arg = "seed", default = "42"}]
+depends-on = [
+    { "task" = "plot_memory_profile", "args" = ["pymc_marketing", "{{ preset_name }}", "{{ seed }}"] },
+    { "task" = "plot_memory_profile", "args" = ["meridian", "{{ preset_name }}", "{{ seed }}"] }
+    ]
