@@ -50,8 +50,8 @@ class ChannelConfig:
         if self.spend_volatility < 0:
             raise ValueError("spend_volatility must be non-negative")
         # Seasonal parameters
-        if not 0 <= self.seasonal_amplitude <= 1:
-            raise ValueError("seasonal_amplitude must be between 0 and 1")
+        if not 0 <= self.seasonal_amplitude:
+            raise ValueError("seasonal_amplitude must be positive.")
         if not -2 * np.pi <= self.seasonal_phase <= 2 * np.pi:
             raise ValueError("seasonal_phase should be between -2π and 2π radians")
         # Delayed start parameters

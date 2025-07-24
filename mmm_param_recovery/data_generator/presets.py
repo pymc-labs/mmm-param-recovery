@@ -1,10 +1,10 @@
 """
 Configuration presets for common MMM use cases.
 
-This module provides pre-configured settings for typical MMM scenarios,
-making it easy for users to get started with common configurations.
+This module provides pre-configured settings for typical MMM scenarios.
 """
 
+import numpy as np
 from math import pi
 from typing import Dict, Any
 from .config import ControlConfig, MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
@@ -12,7 +12,7 @@ from .config import ControlConfig, MMMDataConfig, ChannelConfig, RegionConfig, T
 
 def get_preset_config(preset_name: str, seed: int = 2025_07_15) -> MMMDataConfig:
     """
-    Get a preset configuration for common MMM use cases.
+    Get a named preset configuration.
     
     Parameters
     ----------
@@ -34,6 +34,7 @@ def get_preset_config(preset_name: str, seed: int = 2025_07_15) -> MMMDataConfig
         'seasonal': _get_seasonal_preset,
         'multi_region': _get_multi_region_preset,
         'small_business': _get_small_business_preset,
+        'growing_business': _get_growing_business_preset,
         'medium_business': _get_medium_business_preset,
         'large_business': _get_large_business_preset,
     }
@@ -252,7 +253,7 @@ def _get_small_business_preset(seed: int) -> MMMDataConfig:
                 {"alpha": 0.3, "l_max": 8}
             ],
             saturation_fun="hill_function",
-            saturation_kwargs =[
+            saturation_kwargs = [
                 {"slope": 1, "kappa": 1}, 
                 {"slope": 1.5, "kappa": 0.8}, 
                 {"slope": 1, "kappa": 1.5}, 
@@ -264,8 +265,8 @@ def _get_small_business_preset(seed: int) -> MMMDataConfig:
 
 
 
-def _get_medium_business_preset(seed: int) -> MMMDataConfig:
-    """Preset for medium business with more budget and channels."""
+def _get_growing_business_preset(seed: int) -> MMMDataConfig:
+    """Preset for a growing business expanding to new market regions."""
     return MMMDataConfig(
         n_periods=131, # 2.5 years
         channels=[
@@ -274,7 +275,7 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
                 pattern="linear_trend",
                 spend_volatility=0.7,
                 base_spend=300.0,
-                spend_trend=0.002, # about 20% per year
+                spend_trend=0.002,# about 10% per year
                 base_effectiveness=0.3,
             ),
             ChannelConfig(
@@ -282,7 +283,7 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
                 pattern="linear_trend",
                 spend_volatility=0.8,
                 base_spend=100.0,
-                spend_trend=0.002, # about 20% per year
+                spend_trend=0.002, # about 10% per year
                 base_effectiveness=1.1,
             ),
             ChannelConfig(
@@ -361,7 +362,7 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
                 {"alpha": 0.3, "l_max": 8}
             ],
             saturation_fun="hill_function",
-            saturation_kwargs=[
+            saturation_kwargs= [
                 {"slope": 1, "kappa": 0.3},
                 {"slope": 1.5, "kappa": 1.5},
                 {"slope": 0.8, "kappa": 0.4},
@@ -373,8 +374,10 @@ def _get_medium_business_preset(seed: int) -> MMMDataConfig:
         seed=seed
     )
 
-def _get_large_business_preset(seed: int) -> MMMDataConfig:
-    """Preset for large business with many channels and regions."""
+def _get_medium_business_preset(seed: int) -> MMMDataConfig:
+    """
+    Preset for a medium business with many channels and regions.
+    """
     return MMMDataConfig(
         n_periods=156, # 3 years
         channels=[
@@ -383,7 +386,7 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 pattern="linear_trend",
                 spend_volatility=0.8,
                 base_spend=300.0,
-                spend_trend=0.002, # about 20% per year
+                spend_trend=0.002, # about 10% per year
                 base_effectiveness=1.1,
             ),
             ChannelConfig(
@@ -391,7 +394,7 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 pattern="linear_trend",
                 spend_volatility=1.1,
                 base_spend=100.0,
-                spend_trend=0.002, # about 20% per year
+                spend_trend=0.002, # about 10% per year
                 base_effectiveness=1.2,
             ),
             ChannelConfig(
@@ -524,6 +527,98 @@ def _get_large_business_preset(seed: int) -> MMMDataConfig:
                 {"slope": 0.5, "kappa": 0.5},
                 {"slope": 1.2, "kappa": 0.9},
             ],
+        ),
+        seed=seed
+    )
+
+
+def _get_large_business_preset(seed: int) -> MMMDataConfig:
+    """
+    Preset for a large business with 30 channels and 50 regions.
+    """
+    rng: np.random.Generator = np.random.default_rng(seed=seed)
+    return MMMDataConfig(
+        n_periods=4 * 52, # 4 years
+        channels=[
+            ChannelConfig(
+                name=f"linear-{n}",
+                pattern="linear_trend",
+                spend_volatility=rng.uniform(0.8,1.2),
+                base_spend=rng.uniform(500,5000),
+                spend_trend=rng.uniform(0.0, 0.04),
+                base_effectiveness=rng.uniform(0.5, 2),
+            ) for n in range(10)] + [
+            ChannelConfig(
+                name=f"delayed-start-{n}",
+                pattern="delayed_start",
+                base_spend=rng.uniform(500,5000),
+                spend_volatility=rng.uniform(0.8,1.2),
+                seasonal_amplitude=rng.uniform(0.2,1),
+                seasonal_phase=rng.uniform(0,2 * np.pi),
+                base_effectiveness=rng.uniform(0.5, 2),
+                start_period=rng.integers(10,2 * 52),
+                ramp_up_periods=rng.integers(10, 52),
+            ) for n in range(5)] + [
+            ChannelConfig(
+                name=f"seasonal-{n}",
+                pattern="seasonal",
+                base_spend=rng.uniform(500, 5000),
+                spend_volatility=rng.uniform(0.8, 1.2),
+                seasonal_amplitude=rng.uniform(0.2, 1),
+                seasonal_phase=rng.uniform(0,np.pi),
+                base_effectiveness=rng.uniform(0.5, 2),
+            ) for n in range(5)] + [
+            ChannelConfig(
+                name=f"on-off-{n}",
+                pattern="on_off",
+                base_spend=rng.uniform(500, 5000),
+                spend_volatility=rng.uniform(.8,1.2),
+                base_effectiveness=rng.uniform(0.1, 2),
+                activation_probability=rng.uniform(0.05,0.1),
+                min_active_periods=rng.integers(1,n+2), # ensure min <= max
+                max_active_periods=rng.integers(n+1,11),
+            ) for n in range(10)],
+        control_variables=[
+            ControlConfig(
+                name=f"on-off-{n}",
+                pattern="on_off",
+                base_value=rng.uniform(100, 1000),
+                value_volatility=rng.uniform(.8,1.2),
+                base_effectiveness=rng.uniform(0.1, 2),
+                activation_probability=rng.uniform(0.01,0.1),
+                min_active_periods=rng.integers(1,n+2), # ensure min <= max
+                max_active_periods=rng.integers(n+1,9),
+            ) for n in range(6)] + [
+            ControlConfig(
+                name=f"linear-{n}",
+                pattern="linear_trend",
+                base_value=rng.uniform(100, 1000),
+                value_trend=rng.uniform(0, 0.01),
+                value_volatility=rng.uniform(.8,1.2),
+                base_effectiveness=rng.uniform(0.1, 2),
+            ) for n in range(3)] + [
+                ControlConfig("seasonal", "seasonal", base_value=1000.0)
+            ],
+        regions=RegionConfig(
+            n_regions=50,
+            region_names=[f"geo_{n + 1}" for n in range(50)],
+            base_sales_rate=10000.0,
+            sales_volatility=0.1,
+            seasonal_amplitude=0.2,
+        ),
+        transforms=TransformConfig(
+            adstock_fun="geometric_adstock",
+            adstock_kwargs=[
+                {"alpha": rng.uniform(0,0.5), "l_max": 8}
+                for _ in range(30) 
+                ],
+            saturation_fun="hill_function",
+            saturation_kwargs=[
+                {
+                    "slope": np.random.uniform(0,2),
+                    "kappa": np.random.uniform(0,2),
+                } for _ in range(30)
+             ],
         ),
         seed=seed
     )

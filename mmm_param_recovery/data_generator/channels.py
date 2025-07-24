@@ -52,15 +52,15 @@ def _generate_linear_trend_pattern(
     noise_std = base_spend * spend_volatility
     spend = rng.normal(0, noise_std, n_periods)
     for t in range(2, n_periods):
-
         spend[t] = max(0, 0.7 * spend[t-1] + 0.3 * spend[t-2] +
             # Modify AR(2) process to simulate campaign-like spending
-            rng.normal(-0.1 * spend[t-1], noise_std, 1)
+            rng.normal(-0.1 * spend[t-1], noise_std, 1)[0]
             )
     # Combine trend and noise, ensure non-negative values
     spend *= (1 + linear_trend)
     spend = np.clip(spend, 0, None)
-    
+    assert np.any(spend > 0)
+        
     return spend.astype(float)
 
 

@@ -300,10 +300,11 @@ def _apply_transformations_to_data(
             # Find the corresponding column in the spend data
             # Use consistent x{i+1} format for channel columns
             column_name = f'x{i+1}_{channel.name}' if channel.name != "" else f'x{i+1}'
-            
+        
             if column_name in region_spend_data.columns:
                 # Apply transformations with channel index and regional transform config
                 max_spend = region_spend_data[column_name].max()
+                assert max_spend != 0, f"Max spend zero for {region_name}, {channel.name}"
                 transformed_spend, channel_params = apply_transformations(
                     region_spend_data[column_name].values / max_spend,
                     regional_transform,
