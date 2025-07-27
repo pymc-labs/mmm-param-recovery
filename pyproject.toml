@@ -37,19 +37,20 @@ arviz = "*"
 matplotlib = "*"
 numpy = "*"
 pandas = "*"
-pymc = "*"
 seaborn = "*"
 tensorflow = "*"
 tensorflow-probability = "*"
 xarray = "*"
 pympler = "*"
 statsmodels = "*"
-pymc-marketing = "==0.15.0"
-jax = ">=0.5.2,<0.6"
-numpyro = ">=0.18.0,<0.19"
-nutpie = ">=0.15.2,<0.16"
+jax = "*"
+numpyro = "*"
+nutpie = "*"
 ipywidgets = ">=8.1.7,<9"
 memory_profiler = ">=0.61.0,<0.62"
+pymc = "==5.24.1"
+pymc-marketing = ">=0.15.1,<0.16"
+blackjax = ">=1.2.4,<2"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -99,6 +100,7 @@ depends-on = [
 
 [tool.pixi.tasks.fit_both]
 args = ["preset_name", { arg = "seed", default = "42"}]
+cmd = ["""echo "Run pipeline for {{ preset_name }}." """]
 depends-on = [
     { "task" = "plot_memory_profile", "args" = ["pymc_marketing", "{{ preset_name }}", "{{ seed }}"] },
     { "task" = "plot_memory_profile", "args" = ["meridian", "{{ preset_name }}", "{{ seed }}"] }
