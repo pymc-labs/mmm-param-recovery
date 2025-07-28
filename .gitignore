@@ -11,3 +11,4 @@ data/*
 !data/*/.keep
 .pixi/*
 pixi.lock
+**/.ipynb_checkpoints/
