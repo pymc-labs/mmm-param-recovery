@@ -15,6 +15,7 @@ import pandas as pd
 import tensorflow_probability as tfp
 
 
+@profile
 def build_data(df: pd.DataFrame, channel_columns: list[str]) -> input_data.InputData:
     control_columns = [col for col in df.columns if len(col.split("-")) == 1 and col.startswith("c")]
     # Start building the data input
@@ -40,6 +41,7 @@ def build_data(df: pd.DataFrame, channel_columns: list[str]) -> input_data.Input
     return builder.build()
 
 
+@profile
 def make_priors(df: pd.DataFrame, data: input_data.InputData, channel_columns = list[str]) -> prior_distribution.PriorDistribution:
     n_channels = len(channel_columns)
 
@@ -75,6 +77,7 @@ def make_priors(df: pd.DataFrame, data: input_data.InputData, channel_columns = 
         )
     )
 
+@profile
 def make_model(data: input_data.InputData, prior: prior_distribution.PriorDistribution, ) -> model.Meridian:
     n_time = len(data.time)
     knots = np.arange(0, n_time, 26).tolist()
@@ -109,6 +112,8 @@ def fit_model(mmm: model.Meridian) -> model.Meridian:
     )
     return mmm
 
+def save_model(mmm: model.Meridian, path: str) -> None:
+    model.save_mmm(mmm, path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -127,4 +132,4 @@ if __name__ == "__main__":
 
     mmm = fit_model(mmm)
     
-    model.save_mmm(mmm, f"data/fits/meridian_{args.preset_name}_{args.seed}.pkl")
+    save_model(mmm, f"data/fits/meridian_{args.preset_name}_{args.seed}.pkl")

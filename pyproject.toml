@@ -70,7 +70,7 @@ outputs = [
 
 [tool.pixi.tasks.mmm_file_type]
 args = ["mmm_library"]
-cmd = """echo {% if "meridian" in mmm_library %}pkl{% else %}nc{% endif %}"""
+cmd = """echo {% if "meridian" in mmm_library %}'pkl'{% else %}'nc'{% endif %}"""
 
 [tool.pixi.tasks.fit_model]
 args = ["mmm_library", "preset_name", { arg = "seed", default = "42"}]
@@ -80,7 +80,9 @@ inputs = [
     "mmm_param_recovery/fit_{{ mmm_library }}.py"
     ]
 # output broken for some reason.
-# outputs = ["data/fits/{{ mmm_library }}_{{ preset_name }}_{{ seed }}.$(pixi run mmm_file_type {{ mmm_library }})"]
+outputs = [
+    """data/fits/{{ mmm_library }}_{{ preset_name }}_{{ seed }}.{% if "meridian" in mmm_library %}pkl{% else %}nc{% endif %}""",
+    "data/results/mprofile_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.dat"]
 depends-on = [{ "task" = "make_test_data", "args" = ["{{ preset_name }}", "{{ seed }}"] }]
 
 [tool.pixi.tasks.plot_memory_profile]
@@ -89,6 +91,7 @@ cmd = [
     "mprof",
     "plot",
     "data/results/mprofile_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.dat",
+    "-f",
     "-t",
     "Sampling memory profile: {{mmm_library}}",
     "-o",
@@ -97,10 +100,16 @@ cmd = [
 depends-on = [
     { "task" = "fit_model", "args" = ["{{ mmm_library }}", "{{ preset_name }}", "{{ seed }}"] }
 ]
+inputs = [
+    "data/results/mprofile_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.dat"
+]
+outputs = [
+    "figures/mprof_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.png"
+]
 
 [tool.pixi.tasks.fit_both]
 args = ["preset_name", { arg = "seed", default = "42"}]
-cmd = ["""echo "Run pipeline for {{ preset_name }}." """]
+cmd = "echo {{ preset_name }}"
 depends-on = [
     { "task" = "plot_memory_profile", "args" = ["pymc_marketing", "{{ preset_name }}", "{{ seed }}"] },
     { "task" = "plot_memory_profile", "args" = ["meridian", "{{ preset_name }}", "{{ seed }}"] }

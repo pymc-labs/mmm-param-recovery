@@ -104,11 +104,11 @@ def plot_channel_spend(
             region_data = region_data.sort_values('date')
                 
             ax.plot(region_data['date'], region_data[channel_col], 
-                   linewidth=2, alpha=0.8)
+                   linewidth=2, alpha=0.8, **kwargs)
             
-            # Set column title (region name)
-            ax.set_title(f'{region}', fontsize=12, fontweight='bold')
-            
+            # Set column title (region name) only for first row
+            if i == 0:
+                ax.set_title(f'{region}', fontsize=12, fontweight='bold')
             # Set y-axis label only for first column (leftmost)
             if j == 0:
                 ax.set_ylabel(f'{channel_name}', fontsize=12)
@@ -218,7 +218,7 @@ def plot_channel_contributions(
             region_data = region_data.sort_values('date')
             
             ax.plot(region_data['date'], region_data[contribution_col], 
-                   linewidth=2, alpha=0.8, label=f'{channel_name}')
+                   linewidth=2, alpha=0.8, label=f'{channel_name}', **kwargs)
             
             # Set column title (region name) only for first row
             if i == 0:

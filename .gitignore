@@ -1,4 +1,3 @@
-ai-rules/*
 __pycache__/*
 *.pyc
 *.pyo
@@ -8,3 +7,7 @@ __pycache__/*
 *.pywz
 *.pyzw
 *.pyzwz
+data/*
+!data/*/.keep
+.pixi/*
+pixi.lock
