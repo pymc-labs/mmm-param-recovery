@@ -23,4 +23,26 @@ if __name__ == "__main__":
     assert data_dir.exists(), f"Data directory {data_dir} does not exist"
     data = make_test_data(preset_name, seed)
     data["data"].rename(columns={"date": "time"}).to_csv(data_dir / f"test_data_{preset_name}_{seed}.csv", index=False)
-    # data["ground_truth"].to_csv(data_dir / f"ground_truth_{preset_name}_{seed}.csv", index=False)
+    # Save ground truth as xarray as that is what we will use for evaluation
+    (
+        data["ground_truth"]["transformed_spend"]
+        .reset_index()
+        .melt(id_vars=["date", "geo"])
+        .rename(
+            columns={
+                "variable": "channel",
+                "value": "channel_contribution_original_scale",
+            }
+        )
+        .transform(
+            {
+                "channel": lambda x: x.lstrip("contribution_"),
+                "date": lambda x: x,
+                "geo": lambda x: x,
+                "channel_contribution_original_scale": lambda x: x,
+            }
+        )
+        .set_index(["channel", "date", "geo"])
+        .to_xarray()
+        .to_netcdf(data_dir / f"ground_truth_{preset_name}_{seed}.nc")
+    )
