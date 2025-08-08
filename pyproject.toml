@@ -1,0 +1,158 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mmm-param-recovery"
+version = "0.1.0"
+description = "A package for generating synthetic MMM (Media Mix Modeling) datasets for parameter recovery studies"
+authors = [{name = "Thomas Wiecki", email = "thomas.wiecki@gmail.com"}]
+requires-python = ">=3.12"
+dependencies = ["google-meridian>=1.1.6,<2"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "pre-commit",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mmm_param_recovery*"]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[tool.pixi.pypi-dependencies]
+mmm-param-recovery = { path = ".", editable = true }
+
+[tool.pixi.dependencies]
+pytest = "*"
+ipykernel = "*"
+jupytext = "*"
+jupyterlab = "*"
+arviz = "*"
+matplotlib = "*"
+numpy = "*"
+pandas = "*"
+seaborn = "*"
+tensorflow = "*"
+tensorflow-probability = "*"
+xarray = "*"
+pympler = "*"
+statsmodels = "*"
+jax = "*"
+numpyro = "*"
+nutpie = "*"
+ipywidgets = ">=8.1.7,<9"
+memory_profiler = ">=0.61.0,<0.62"
+pymc = "==5.24.1"
+pymc-marketing = ">=0.15.1,<0.16"
+blackjax = ">=1.2.4,<2"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short" 
+
+[tool.pixi.tasks.make_test_data]
+cmd = "python mmm_param_recovery/make_test_data.py --preset_name {{preset_name}} --seed {{seed}}"
+args = ["preset_name", { arg = "seed", default = "42"}]
+inputs = ["mmm_param_recovery/data_generator/*", "mmm_param_recovery/make_test_data.py"]
+outputs = [
+    "data/test_data/test_data_{{ preset_name}}_{{ seed }}.csv",
+    "data/test_data/ground_truth_{{ preset_name}}_{{ seed }}.csv"
+]
+
+[tool.pixi.tasks.mmm_file_type]
+args = ["mmm_library"]
+cmd = """echo {% if "meridian" in mmm_library %}'pkl'{% else %}'nc'{% endif %}"""
+
+[tool.pixi.tasks.fit_model]
+args = ["mmm_library", "preset_name", { arg = "seed", default = "42"}]
+cmd = "mprof run --include-children --python -o data/results/mprofile_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.dat mmm_param_recovery/fit_{{ mmm_library }}.py --preset_name {{ preset_name }} --seed {{ seed }}"    
+inputs = [
+    "data/test_data/test_data_{{ preset_name }}_{{ seed }}.csv",
+    "mmm_param_recovery/fit_{{ mmm_library }}.py"
+    ]
+# output broken for some reason.
+outputs = [
+    """data/fits/{{ mmm_library }}_{{ preset_name }}_{{ seed }}.{% if "meridian" in mmm_library %}pkl{% else %}nc{% endif %}""",
+    "data/results/mprofile_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.dat"]
+depends-on = [{ "task" = "make_test_data", "args" = ["{{ preset_name }}", "{{ seed }}"] }]
+
+[tool.pixi.tasks.plot_memory_profile]
+args = ["mmm_library", "preset_name", { arg = "seed", default = "42"}]
+cmd = [
+    "mprof",
+    "plot",
+    "data/results/mprofile_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.dat",
+    "-f",
+    "-t",
+    "Sampling memory profile: {{mmm_library}}",
+    "-o",
+    "figures/mprof_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.png"
+    ]
+depends-on = [
+    { "task" = "fit_model", "args" = ["{{ mmm_library }}", "{{ preset_name }}", "{{ seed }}"] }
+]
+inputs = [
+    "data/results/mprofile_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.dat"
+]
+outputs = [
+    "figures/mprof_{{ mmm_library }}_{{ preset_name }}_{{ seed }}.png"
+]
+
+[tool.pixi.tasks.fit_both]
+args = ["preset_name", { arg = "seed", default = "42"}]
+cmd = "echo {{ preset_name }}"
+depends-on = [
+    { "task" = "plot_memory_profile", "args" = ["pymc_marketing", "{{ preset_name }}", "{{ seed }}"] },
+    { "task" = "plot_memory_profile", "args" = ["meridian", "{{ preset_name }}", "{{ seed }}"] }
+    ]
+
+# This task evaluates both Meridian and PyMC-Marketing models for a given preset_name and seed.
+# It compares the performance of both libraries on the same synthetic dataset and saves evaluation results.
+# The task depends on both model fits being completed before running the evaluation, and will run
+# those fits if needed.
+[tool.pixi.tasks.evaluate_models]
+args = ["preset_name", { arg = "seed", default = "42"}]
+cmd = "python mmm_param_recovery/evaluation.py --preset_name {{ preset_name }} --seed {{ seed }} --model_type both --output_path data/results"
+inputs = [
+    "mmm_param_recovery/evaluation.py",
+    "data/test_data/ground_truth_{{ preset_name }}_{{ seed }}.nc",
+    "data/fits/meridian_{{ preset_name }}_{{ seed }}.pkl",
+    "data/fits/pymc_marketing_{{ preset_name }}_{{ seed }}.nc"
+]
+outputs = [
+    "data/results/results_{{ preset_name }}_{{ seed }}.nc"
+]
+depends-on = [
+    { "task" = "fit_model", "args" = ["meridian", "{{ preset_name }}", "{{ seed }}"] },
+    { "task" = "fit_model", "args" = ["pymc_marketing", "{{ preset_name }}", "{{ seed }}"] }
+]
+
+# This task runs the 'evaluate_models' task for a given preset_name and a list of seeds.
+# The 'seeds' argument should be a comma-separated string of integer seeds (e.g., "42,123,20250723").
+# The command splits the seeds string on commas and iterates over each seed, running the evaluation for each one.
+[tool.pixi.tasks.evaluate_multiple_seeds]
+args = ["preset_name", "seeds"]
+cmd = "for seed in $(echo {{ seeds }} | tr ',' ' '); do pixi run evaluate_models --preset_name {{ preset_name }} --seed $seed; done"
+
+# This task runs the complete evaluation pipeline across all four business presets with the given seeds.
+# It evaluates both Meridian and PyMC-Marketing models for small_business, growing_business, medium_business, and large_business.
+# The 'seeds' argument should be a comma-separated string of integer seeds (e.g., "42,123,20250723").
+# This is the main entry point for running comprehensive model comparisons across different business scenarios.
+[tool.pixi.tasks.evaluate_all_presets]
+args = ["seeds"]
+cmd = "echo 'Run model evaluation pipeline for all presets with seeds: {{ seeds }}'"
+depends-on = [
+    { "task" = "evaluate_multiple_seeds", "args" = ["small_business", "{{ seeds }}"] },
+    { "task" = "evaluate_multiple_seeds", "args" = ["growing_business", "{{ seeds }}"] },
+    { "task" = "evaluate_multiple_seeds", "args" = ["medium_business", "{{ seeds }}"] },
+    { "task" = "evaluate_multiple_seeds", "args" = ["large_business", "{{ seeds }}"] }
+]
