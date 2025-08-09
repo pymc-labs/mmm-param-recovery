@@ -16,7 +16,7 @@ def compute_error_measure(
     idata: xr.DataArray,
     true_values: xr.DataArray,
     time_dim: str = "date",
-    error_measure: Literal["bias", "absolute_error"] = "bias",
+    error_measure: Literal["bias", "absolute_error", "srmse"] = "bias",
 ) -> xr.DataArray:
     """
     Compute bias measure (mean absolute error) for channel contributions.
@@ -38,23 +38,20 @@ def compute_error_measure(
     xr.Dataset
         Dataset containing bias measures with dimensions (chain, draw, ...), where ... are the dimensions of idata, except after averaging over time_dim.
     """
-    # Extract predicted values
-    error_measure_func = {"absolute_error": np.abs, "bias": lambda x: x}[error_measure]
-
     pred_values = idata
 
     # Assert true values include time_dim
     assert time_dim in true_values.dims, "True values must include time_dim"
 
     # Compute bias (mean absolute error)
-    bias = error_measure_func(pred_values - true_values).mean(time_dim)
+    if error_measure == "absolute_error":
+        error = np.abs(pred_values - true_values).mean(time_dim)
+    elif error_measure == "srmse":
+        error = ((pred_values - true_values) ** 2).mean(time_dim)
+    else: 
+        error = (pred_values - true_values).mean(time_dim)
 
-    # Create dataset with proper coordinates
-    bias = xr.DataArray(
-        bias.values, coords=bias.coords, attrs=bias.attrs, dims=bias.dims
-    )
-
-    return bias
+    return error
 
 
 def format_metrics_for_comparison(
