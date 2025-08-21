@@ -13,7 +13,7 @@ we have found Conda to be the easiest method.
 ```shell
 conda env create -f cpu-environment.yaml
 ```
-Open [comparison-all-cpu-adstock.ipynb] and run it with the newly created Conda environment named **python312-cpu**.
+Open [comparison-all-cpu-adstock.ipynb](comparison-all-cpu-adstock.ipynb) and run it with the newly created Conda environment named **python312-cpu**.
 
 ## GPU tests
 
