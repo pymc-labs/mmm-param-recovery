@@ -1,14 +1,7 @@
-__pycache__/*
-*.pyc
-*.pyo
-*.pyd
-*.pyw
-*.pyz
-*.pywz
-*.pyzw
-*.pyzwz
+# pixi environments
+.pixi/*
+!.pixi/config.toml
 data/*
 !data/*/.keep
-.pixi/*
-pixi.lock
-**/.ipynb_checkpoints/
+__pycache__
+.ipynb_checkpoints
