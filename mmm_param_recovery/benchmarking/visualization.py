@@ -14,7 +14,7 @@ from . import storage
 def setup_plot_style() -> None:
     """Set up consistent plot styling."""
     az.style.use("arviz-darkgrid")
-    plt.rcParams["figure.figsize"] = [12, 7]
+    plt.rcParams["figure.figsize"] = [16, 9]
     plt.rcParams["figure.dpi"] = 100
     plt.rcParams["xtick.labelsize"] = 10
     plt.rcParams["ytick.labelsize"] = 8
@@ -39,26 +39,133 @@ def plot_meridian_posterior_predictive(
     save : bool
         Whether to save the plot
     """
-    n_geos = len(data_df["geo"].unique())
-    model_fit = visualizer.ModelFit(meridian_model)
+    from meridian.analysis import analyzer
     
-    fig = model_fit.plot_model_fit(
-        n_top_largest_geos=n_geos,
-        show_geo_level=True,
-        include_baseline=False,
-        include_ci=True
+    # Extract geo and time information
+    geos = data_df["geo"].unique()
+    dates = data_df["time"].unique()
+    
+    # Get Meridian Analyzer
+    meridian_analyzer = analyzer.Analyzer(meridian_model)
+    
+    # Get expected outcomes (predictions) using the Analyzer
+    # This returns shape: (n_chains, n_draws, n_geos, n_times)
+    expected_outcomes = meridian_analyzer.expected_outcome(
+        use_posterior=True,
+        aggregate_geos=False,
+        aggregate_times=False,
+        use_kpi=True,
+        batch_size=100
+    )
+    
+    # Convert to numpy array and reshape for easier handling
+    # Shape: (n_chains * n_draws, n_geos, n_times)
+    predictions = expected_outcomes.numpy()
+    n_chains, n_draws, n_geos_pred, n_times_pred = predictions.shape
+    predictions = predictions.reshape(-1, n_geos_pred, n_times_pred)
+    
+    # Create matplotlib figure with improved aspect ratio
+    n_geos = len(geos)
+    fig, axes = plt.subplots(
+        ncols=n_geos,
+        figsize=(8 * n_geos, 5),  # Adjusted width for better aspect ratio
+        sharex=True,
+        sharey=True,
+        layout="constrained",
+    )
+    
+    if n_geos == 1:
+        axes = [axes]
+    
+    for j, geo in enumerate(geos):
+        ax = axes[j]
+        geo_data = data_df[data_df["geo"] == geo].copy()
+        
+        # Sort by time to ensure proper ordering
+        geo_data = geo_data.sort_values("time")
+        
+        # Get predictions for this geo - ensure we have right number of time points
+        geo_predictions = predictions[:, j, :]  # Shape: (samples, n_times_pred)
+        
+        # Match the number of time points between predictions and data
+        n_times_data = len(geo_data)
+        if n_times_pred != n_times_data:
+            # If mismatch, take the minimum and align
+            n_times_use = min(n_times_pred, n_times_data)
+            geo_predictions = geo_predictions[:, :n_times_use]
+            geo_data = geo_data.iloc[:n_times_use]
+            print(f"  Warning: Time dimension mismatch. Using {n_times_use} time points.")
+        
+        # Calculate HDI intervals - arviz needs shape (time, samples)
+        # geo_predictions is (samples, time), so we transpose to (time, samples)
+        # But we need to ensure arviz interprets it correctly
+        hdi_94 = np.zeros((len(geo_data), 2))
+        hdi_50 = np.zeros((len(geo_data), 2))
+        
+        for t in range(len(geo_data)):
+            time_samples = geo_predictions[:, t]  # Get all samples for this time point
+            hdi_94[t] = az.hdi(time_samples, hdi_prob=0.94)
+            hdi_50[t] = az.hdi(time_samples, hdi_prob=0.50)
+        
+        # Plot HDI intervals
+        time_points = range(len(geo_data))
+        ax.fill_between(
+            time_points,
+            hdi_94[:, 0],
+            hdi_94[:, 1],
+            alpha=0.2,
+            color="C0",
+            label="94% HDI"
+        )
+        ax.fill_between(
+            time_points,
+            hdi_50[:, 0],
+            hdi_50[:, 1],
+            alpha=0.4,
+            color="C0",
+            label="50% HDI"
+        )
+        
+        # Plot median prediction
+        median_pred = np.median(geo_predictions, axis=0)
+        ax.plot(time_points, median_pred, color="C0", linewidth=2, alpha=0.8)
+        
+        # Plot actual data
+        ax.plot(
+            time_points,
+            geo_data["y"].values,
+            color="black",
+            linewidth=1.5,
+            label="Actual"
+        )
+        
+        ax.set_title(f"{geo}")
+        ax.legend(loc="upper left")
+        ax.grid(True, alpha=0.3)
+        
+        # Format x-axis
+        if j == 0:
+            ax.set_ylabel("KPI Value")
+        ax.set_xlabel("Time Period")
+        
+        # Set x-axis labels (show every nth date)
+        n_ticks = 6
+        tick_indices = np.linspace(0, len(geo_data) - 1, n_ticks, dtype=int)
+        ax.set_xticks(tick_indices)
+        time_values = geo_data["time"].values
+        ax.set_xticklabels([str(time_values[int(i)])[:10] for i in tick_indices], rotation=45, ha='right')
+    
+    fig.suptitle(
+        f"{dataset_name.replace('_', ' ').title()} – Meridian",
+        fontsize=16,
+        fontweight="bold",
+        y=1.03
     )
     
     if save:
-        plot_path = storage.get_plot_path(dataset_name, "posterior_predictive_meridian.html")
-        # Meridian visualizer returns a plotly figure, save as HTML
-        try:
-            fig.write_html(str(plot_path))
-            print(f"  ✓ Saved Meridian posterior predictive plot to {plot_path}")
-        except AttributeError:
-            # If it's an Altair chart, save differently
-            fig.save(str(plot_path))
-            print(f"  ✓ Saved Meridian posterior predictive plot to {plot_path}")
+        plot_path = storage.get_plot_path(dataset_name, "posterior_predictive_meridian.png")
+        plt.savefig(plot_path, bbox_inches='tight', dpi=100)
+        print(f"  ✓ Saved Meridian posterior predictive plot to {plot_path}")
     
     plt.close('all')
 
@@ -90,7 +197,7 @@ def plot_pymc_posterior_predictive(
     
     fig, axes = plt.subplots(
         ncols=len(geos),
-        figsize=(6 * len(geos), 5),
+        figsize=(8 * len(geos), 5),  # Adjusted width for better aspect ratio
         sharex=True,
         sharey=True,
         layout="constrained",
@@ -161,7 +268,7 @@ def plot_runtime_comparison(
     save : bool
         Whether to save the plot
     """
-    fig, ax = plt.subplots(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(10, 6))
     
     runtime_df.plot(kind='bar', ax=ax, rot=45)
     ax.set_ylabel('Runtime (seconds)')
@@ -192,7 +299,7 @@ def plot_ess_comparison(
     save : bool
         Whether to save the plot
     """
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     
     metrics = ["min", "q10", "q50", "q90"]
     
@@ -299,7 +406,7 @@ def plot_ess_per_second_comparison(
     ).reset_index()
     
     # Create figure with subplots for each metric
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     
     metrics = ['min_per_s', 'q10_per_s', 'q50_per_s', 'q90_per_s']
     metric_labels = ['Min ESS/s', 'Q10 ESS/s', 'Median ESS/s', 'Q90 ESS/s']
@@ -356,7 +463,7 @@ def plot_diagnostics_summary(
     save : bool
         Whether to save the plot
     """
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     
     # Runtime vs ESS min
     ax = axes[0, 0]

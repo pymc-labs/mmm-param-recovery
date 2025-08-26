@@ -340,6 +340,8 @@ data/results/
 │   ├── meridian_model.pkl          # Fitted model
 │   ├── pymc_{sampler}_model.nc     # PyMC models
 │   └── plots/                      # Visualizations
+│       ├── posterior_predictive_meridian.png
+│       └── posterior_predictive_pymc_{sampler}.png
 └── summary/
     ├── runtime_comparison.csv      # Performance tables
     ├── ess_comparison.csv
