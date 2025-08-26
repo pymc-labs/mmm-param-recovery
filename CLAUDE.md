@@ -18,37 +18,42 @@ Modular components for model comparison:
 
 - **data_loader.py**: Load and prepare datasets
   - `load_multiple_datasets(dataset_names, seed)`
-  - Returns tuples of (data_df, channel_columns, control_columns, truth_df)
+  - Returns list of tuples: (data_df, channel_columns, control_columns, truth_df)
 
 - **model_builder.py**: Construct models for both libraries
   - `build_meridian_model(data_df, channel_columns, control_columns)` 
   - `build_pymc_model(data_df, channel_columns, control_columns)`
-  - Handles prior calculation based on spend shares
+  - `calculate_prior_sigma(data_df, channel_columns)` - Compute priors based on spend shares
 
-- **model_fitter.py**: Fit models with different samplers
-  - `fit_meridian(model, n_chains, n_draws, n_tune, target_accept, seed)`
-  - `fit_pymc(model, data_df, sampler, n_chains, n_draws, n_tune, target_accept, seed)`
-  - Returns (fitted_model, runtime, ess_stats)
+- **model_fitter.py**: Fit models with different samplers (builds fresh models internally)
+  - `fit_meridian(data_df, channel_columns, control_columns, n_chains, n_draws, n_tune, target_accept, seed)`
+  - `fit_pymc(data_df, channel_columns, control_columns, sampler, n_chains, n_draws, n_tune, target_accept, seed)`
+  - Both build fresh models from scratch to include compilation time
+  - Returns: (fitted_model, runtime, ess_stats)
 
 - **diagnostics.py**: Compute convergence metrics
-  - `compute_ess(idata)` - Returns min, q10, q50, q90 ESS values
-  - `create_diagnostics_summary(results, dataset_name)`
+  - `compute_ess(idata)` - Returns dict with min, q10, q50, q90 ESS values
+  - `create_diagnostics_summary(results, dataset_name)` - Returns DataFrame
 
 - **evaluation.py**: Performance metrics
-  - `evaluate_meridian_fit(model, data_df)` 
-  - `evaluate_pymc_fit(model, data_df, sampler)`
-  - Returns R², MAPE, Durbin-Watson statistics
+  - `evaluate_meridian_fit(meridian_model, data_df)` 
+  - `evaluate_pymc_fit(pymc_model, data_df, sampler)`
+  - Returns list of dicts with R², MAPE, Durbin-Watson per geo
 
 - **visualization.py**: Generate plots
-  - Posterior predictive checks
-  - Runtime/ESS comparisons
-  - Performance metrics visualization
-  - Model comparison plots (Meridian vs PyMC)
+  - `plot_meridian_posterior_predictive(model, data_df, dataset_name)`
+  - `plot_pymc_posterior_predictive(model, data_df, dataset_name, sampler)`
+  - `plot_runtime_comparison(runtime_df)`
+  - `plot_ess_comparison(ess_df)`
+  - `plot_performance_metrics(performance_df)`
+  - `plot_diagnostics_summary(diagnostics_df)`
 
 - **storage.py**: Model persistence
-  - `save_meridian_model()`, `save_pymc_model()`
-  - `load_meridian_model()`, `load_pymc_model()`
-  - `model_exists(dataset_name, library, sampler=None)`
+  - `save_meridian_model(model, dataset_name, runtime, ess)`
+  - `save_pymc_model(model, dataset_name, sampler, runtime, ess)`
+  - `load_meridian_model(dataset_name)` - Returns (model, runtime, ess)
+  - `load_pymc_model(dataset_name, sampler)` - Returns (model, runtime, ess)
+  - `model_exists(dataset_name, library, sampler=None)` - Returns bool
 
 ## Code Organization
 
@@ -312,6 +317,30 @@ data_df = pd.DataFrame(
 - **large_business**: nutpie/pymc only, 4 chains, 1000 draws
 - **growing_business**: All samplers, 4 chains, 1000 draws
 
+## Benchmark Implementation Notes
+
+### Model Independence Between Samplers
+- Each PyMC sampler run creates a completely fresh model instance from scratch
+- No JAX compilation caching occurs between different sampler runs
+- Each sampler (pymc, blackjax, numpyro, nutpie) rebuilds the entire computational graph
+- Runtime measurements include full model building and compilation time for each sampler
+- This ensures fair comparison but may not reflect production scenarios where models are reused (and that's ok)
+
+### Key Fairness Considerations
+1. **Model Structure Differences**:
+   - PyMC includes yearly_seasonality=2, Meridian uses spline knots
+   - Different prior structures between libraries
+   - This is ok and it is a design choice
+   
+2. **Transformation Alignment**:
+   - Ground truth data generated using PyMC-Marketing's transformers
+   - Both models attempt to recover these transformations
+
+3. **Runtime Measurement**:
+   - Timer starts before model building (includes compilation)
+   - Each sampler measured independently with cold start
+   - No warm-start benefits between runs
+
 ## Common Tasks
 
 ### Run Full Benchmark
@@ -357,6 +386,7 @@ data/results/
 - Type hints for all function signatures
 - Immutable data structures where possible
 - Modular organization by feature/responsibility
+- Add asserts where appropriate to validate assumptions
 
 ## Debugging Tips
 
