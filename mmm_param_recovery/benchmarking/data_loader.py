@@ -60,7 +60,7 @@ def prepare_dataset_for_modeling(
     
     channel_columns = [col for col in data_df.columns if re.match(r"x\d+", col)]
     control_columns = [col for col in data_df.columns 
-                      if len(col.split("-")) == 1 and col.startswith("c")]
+                      if re.match(r"^c\d+$", col)]
     
     truth_df = dataset_result['ground_truth']['transformed_spend'].reset_index().rename(
         columns={"date": "time"}
