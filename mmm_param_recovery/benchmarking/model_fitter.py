@@ -62,8 +62,9 @@ def fit_meridian(
 
 
 def fit_pymc(
-    pymc_model: MMM,
     data_df: pd.DataFrame,
+    channel_columns: list,
+    control_columns: list,
     sampler: str,
     n_chains: int,
     n_draws: int,
@@ -73,12 +74,17 @@ def fit_pymc(
 ) -> Tuple[MMM, float, Dict[str, Optional[float]]]:
     """Fit PyMC-Marketing model with specified sampler.
     
+    Builds a fresh model from scratch and fits it, ensuring fair timing
+    that includes model building and compilation.
+    
     Parameters
     ----------
-    pymc_model : MMM
-        PyMC-Marketing model to fit
     data_df : pd.DataFrame
         Dataset
+    channel_columns : list
+        Channel column names
+    control_columns : list
+        Control column names
     sampler : str
         Sampler name ('pymc', 'blackjax', 'numpyro', 'nutpie')
     n_chains : int
@@ -99,7 +105,6 @@ def fit_pymc(
     """
     print(f"  Fitting PyMC-Marketing with {sampler}, {n_chains} chains, {n_draws} draws, {n_tune} tune steps")
     
-    model_copy = deepcopy(pymc_model)
     x = data_df.drop(columns=["y"])
     y = data_df["y"]
     
@@ -107,9 +112,19 @@ def fit_pymc(
     if sampler == "nutpie":
         kwargs = {"nuts_sampler_kwargs": {"backend": "jax", "gradient_backend": "jax"}}
     
+    # Start timing BEFORE building the model to include compilation time
     start = time.perf_counter()
     
-    model_copy.fit(
+    # Import here to avoid circular dependency
+    from . import model_builder
+    
+    # Build a fresh model from scratch (includes model compilation)
+    pymc_model = model_builder.build_pymc_model(
+        data_df, channel_columns, control_columns
+    )
+    
+    # Fit the model
+    pymc_model.fit(
         X=x,
         y=y,
         chains=n_chains,
@@ -121,7 +136,7 @@ def fit_pymc(
         **kwargs
     )
     
-    model_copy.sample_posterior_predictive(
+    pymc_model.sample_posterior_predictive(
         X=x,
         extend_idata=True,
         combined=True,
@@ -129,11 +144,11 @@ def fit_pymc(
     )
     
     runtime = time.perf_counter() - start
-    ess = diagnostics.compute_ess(model_copy.idata)
+    ess = diagnostics.compute_ess(pymc_model.idata)
     
     print(f"  ✓ PyMC-Marketing - {sampler}: {runtime:.1f}s, ESS min: {ess.get('min', 'N/A')}")
     
-    return model_copy, runtime, ess
+    return pymc_model, runtime, ess
 
 
 def should_skip_sampler(sampler: str, dataset_name: str) -> bool:

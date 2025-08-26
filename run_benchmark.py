@@ -185,10 +185,6 @@ def run_benchmark_for_dataset(
     
     # PyMC-Marketing
     if "pymc" in args.libraries:
-        pymc_model_template = model_builder.build_pymc_model(
-            data_df, channel_columns, control_columns
-        )
-        
         for sampler in args.samplers:
             if model_fitter.should_skip_sampler(sampler, dataset_name):
                 continue
@@ -198,9 +194,11 @@ def run_benchmark_for_dataset(
             if not args.force_rerun and storage.model_exists(dataset_name, "pymc", sampler):
                 pymc_result, runtime, ess = storage.load_pymc_model(dataset_name, sampler)
             else:
+                # Build and fit a fresh model from scratch for fair comparison
                 pymc_result, runtime, ess = model_fitter.fit_pymc(
-                    pymc_model_template,
                     data_df,
+                    channel_columns,
+                    control_columns,
                     sampler,
                     args.chains,
                     args.draws,
