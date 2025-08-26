@@ -2,6 +2,7 @@
 """Main benchmarking script for MMM parameter recovery comparison."""
 
 import argparse
+import gc
 import os
 import sys
 from typing import List, Dict, Any, Optional
@@ -125,7 +126,7 @@ def run_benchmark_for_dataset(
     truth_df: pd.DataFrame,
     args: argparse.Namespace
 ) -> Dict[str, Any]:
-    """Run benchmark for a single dataset.
+    """Run benchmark for a single dataset with memory isolation.
     
     Parameters
     ----------
@@ -147,75 +148,90 @@ def run_benchmark_for_dataset(
     Dict[str, Any]
         Results dictionary with fitted models and metrics
     """
-    results = {}
     all_performance_rows = []
     
-    # Meridian
-    if "meridian" in args.libraries:
-        print("\n--- Meridian ---")
+    # PHASE 1: Fit and save models (if needed) with memory isolation
+    if not args.plots_only:
+        print("\n=== PHASE 1: FITTING MODELS (ISOLATED) ===")
         
-        if not args.force_rerun and storage.model_exists(dataset_name, "meridian"):
-            meridian_result, runtime, ess = storage.load_meridian_model(dataset_name)
-        else:
-            meridian_result, runtime, ess = model_fitter.fit_meridian(
-                data_df,
-                channel_columns,
-                control_columns,
-                args.chains,
-                args.draws,
-                args.tune,
-                args.target_accept,
-                args.seed
-            )
-            storage.save_meridian_model(meridian_result, dataset_name, runtime, ess)
-        
-        results["Meridian"] = (meridian_result, runtime, ess)
-        
-        # Evaluate and plot
-        perf_rows = evaluation.evaluate_meridian_fit(meridian_result, data_df)
-        for row in perf_rows:
-            row["Dataset"] = dataset_name
-        all_performance_rows.extend(perf_rows)
-        
-        if not args.plots_only:
-            visualization.plot_meridian_posterior_predictive(
-                meridian_result, data_df, dataset_name
-            )
-    
-    # PyMC-Marketing
-    if "pymc" in args.libraries:
-        for sampler in args.samplers:
-            if model_fitter.should_skip_sampler(sampler, dataset_name):
-                continue
-            
-            print(f"\n--- PyMC-Marketing - {sampler} ---")
-            
-            if not args.force_rerun and storage.model_exists(dataset_name, "pymc", sampler):
-                pymc_result, runtime, ess = storage.load_pymc_model(dataset_name, sampler)
-            else:
-                # Build and fit a fresh model from scratch for fair comparison
-                pymc_result, runtime, ess = model_fitter.fit_pymc(
+        # Fit Meridian
+        if "meridian" in args.libraries:
+            if not storage.model_exists(dataset_name, "meridian") or args.force_rerun:
+                print("\n--- Meridian ---")
+                meridian_result, runtime, ess = model_fitter.fit_meridian(
                     data_df,
                     channel_columns,
                     control_columns,
-                    sampler,
                     args.chains,
                     args.draws,
                     args.tune,
                     args.target_accept,
                     args.seed
                 )
-                storage.save_pymc_model(pymc_result, dataset_name, sampler, runtime, ess)
-            
-            results[f"PyMC-Marketing - {sampler}"] = (pymc_result, runtime, ess)
-            
-            # Evaluate and plot
-            perf_rows = evaluation.evaluate_pymc_fit(pymc_result, data_df, sampler)
-            for row in perf_rows:
-                row["Dataset"] = dataset_name
-            all_performance_rows.extend(perf_rows)
-            
-            if not args.plots_only:
+                storage.save_meridian_model(meridian_result, dataset_name, runtime, ess)
+                del meridian_result
+                gc.collect()
+                print("  ✓ Model fitted, saved, and memory cleared")
+        
+        # Fit PyMC models
+        if "pymc" in args.libraries:
+            for sampler in args.samplers:
+                if model_fitter.should_skip_sampler(sampler, dataset_name):
+                    continue
+                
+                if not storage.model_exists(dataset_name, "pymc", sampler) or args.force_rerun:
+                    print(f"\n--- PyMC-Marketing - {sampler} ---")
+                    pymc_result, runtime, ess = model_fitter.fit_pymc(
+                        data_df,
+                        channel_columns,
+                        control_columns,
+                        sampler,
+                        args.chains,
+                        args.draws,
+                        args.tune,
+                        args.target_accept,
+                        args.seed
+                    )
+                    storage.save_pymc_model(pymc_result, dataset_name, sampler, runtime, ess)
+                    del pymc_result
+                    gc.collect()
+                    print("  ✓ Model fitted, saved, and memory cleared")
+    
+    # PHASE 2: Load all models for evaluation
+    print("\n=== PHASE 2: EVALUATING MODELS ===")
+    results = {}
+    
+    # Load and evaluate Meridian
+    if "meridian" in args.libraries and storage.model_exists(dataset_name, "meridian"):
+        print("\n--- Evaluating Meridian ---")
+        meridian_result, runtime, ess = storage.load_meridian_model(dataset_name)
+        results["Meridian"] = (meridian_result, runtime, ess)
+        
+        perf_rows = evaluation.evaluate_meridian_fit(meridian_result, data_df)
+        for row in perf_rows:
+            row["Dataset"] = dataset_name
+        all_performance_rows.extend(perf_rows)
+        
+        visualization.plot_meridian_posterior_predictive(
+            meridian_result, data_df, dataset_name
+        )
+    
+    # Load and evaluate PyMC models  
+    if "pymc" in args.libraries:
+        for sampler in args.samplers:
+            if model_fitter.should_skip_sampler(sampler, dataset_name):
+                continue
+                
+            if storage.model_exists(dataset_name, "pymc", sampler):
+                print(f"\n--- Evaluating PyMC-Marketing - {sampler} ---")
+                pymc_result, runtime, ess = storage.load_pymc_model(dataset_name, sampler)
+                results[f"PyMC-Marketing - {sampler}"] = (pymc_result, runtime, ess)
+                
+                perf_rows = evaluation.evaluate_pymc_fit(pymc_result, data_df, sampler)
+                for row in perf_rows:
+                    row["Dataset"] = dataset_name
+                all_performance_rows.extend(perf_rows)
+                
                 visualization.plot_pymc_posterior_predictive(
                     pymc_result, data_df, dataset_name, sampler
                 )
@@ -223,7 +239,7 @@ def run_benchmark_for_dataset(
     results["performance"] = all_performance_rows
     
     # Generate comparison plot if both models exist
-    if "Meridian" in results and "PyMC-Marketing - nutpie" in results and not args.plots_only:
+    if "Meridian" in results and "PyMC-Marketing - nutpie" in results:
         print("\n--- Generating Model Comparison Plot ---")
         meridian_result, _, _ = results["Meridian"]
         pymc_nutpie_result, _, _ = results["PyMC-Marketing - nutpie"]
@@ -445,6 +461,10 @@ def main() -> None:
         )
         
         all_results[dataset_name] = results
+        
+        # Clear memory between datasets
+        gc.collect()
+        print("  ✓ Memory cleared between datasets")
     
     # Create summary tables and plots
     if not args.plots_only:
