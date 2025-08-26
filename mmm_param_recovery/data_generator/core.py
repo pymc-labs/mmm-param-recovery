@@ -112,9 +112,15 @@ def generate_mmm_dataset(
         
         # Combine all data
         combined_data = pd.concat([spend_data, control_data], axis=1)
+
+        # select control effect
+
+        control_effects = control_data[[col for col in control_data.columns if col.endswith('_effect')]]
         
         # Calculate total sales using baseline_sales column
-        combined_data["y"] = baseline_data["baseline_sales"] + control_data.sum(axis=1) + transformed_data.sum(axis=1)
+        combined_data["y"] = baseline_data["baseline_sales"] + control_effects.sum(axis=1) + transformed_data.sum(axis=1)
+
+
         combined_data = combined_data.reset_index()
 
         # Calculate ground truth metrics
