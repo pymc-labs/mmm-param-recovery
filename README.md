@@ -72,12 +72,7 @@ data/results/
     ├── runtime_comparison.csv       # Runtime comparison table
     ├── ess_comparison.csv          # ESS metrics table
     ├── performance_metrics.csv     # R², MAPE, Durbin-Watson
-    ├── diagnostics_summary.csv     # Convergence diagnostics
-    └── combined_plots/
-        ├── runtime_comparison.png
-        ├── ess_comparison.png
-        ├── performance_comparison.png
-        └── diagnostics_summary.png
+    └── diagnostics_summary.csv     # Convergence diagnostics
 ```
 
 ### Jupyter Notebooks

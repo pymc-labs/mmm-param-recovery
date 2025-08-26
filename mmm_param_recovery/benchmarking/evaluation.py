@@ -39,7 +39,7 @@ def calculate_r2(actual: np.ndarray, predicted: np.ndarray) -> float:
 
 
 def calculate_mape(actual: np.ndarray, predicted: np.ndarray) -> float:
-    """Calculate Mean Absolute Percentage Error.
+    """Calculate Mean Absolute Percentage Error. Only takes data points that are not nan and not 0.
     
     Parameters
     ----------
@@ -62,6 +62,24 @@ def calculate_mape(actual: np.ndarray, predicted: np.ndarray) -> float:
     predicted = predicted[mask]
     
     return np.mean(np.abs((actual - predicted) / actual)) * 100
+
+
+def calculate_bias(actual: np.ndarray, predicted: np.ndarray) -> float:
+    """Calculate bias. Only takes data points that are not nan.
+    """
+    mask = ~np.isnan(actual) & ~np.isnan(predicted)
+    actual = actual[mask]
+    predicted = predicted[mask]
+    return np.mean(predicted - actual)
+
+
+def calculate_srmse(actual: np.ndarray, predicted: np.ndarray) -> float:
+    """Calculate standardised root mean squared error. Only takes data points that are not nan.
+    """
+    mask = ~np.isnan(actual) & ~np.isnan(predicted)
+    actual = actual[mask]
+    predicted = predicted[mask]
+    return np.sqrt(np.mean((actual - predicted) ** 2)) / np.mean(actual)
 
 
 def calculate_durbin_watson(residuals: np.ndarray) -> float:
@@ -116,6 +134,8 @@ def evaluate_meridian_fit(
         
         r2 = calculate_r2(actual, expected)
         mape = calculate_mape(actual, expected)
+        bias = calculate_bias(actual, expected)
+        srmse = calculate_srmse(actual, expected)
         dw = calculate_durbin_watson(actual - expected)
         
         results.append({
@@ -123,6 +143,8 @@ def evaluate_meridian_fit(
             "Geo": geo_label,
             "R²": round(r2, 4) if not np.isnan(r2) else None,
             "MAPE (%)": round(mape, 2) if not np.isnan(mape) else None,
+            "Bias": round(bias, 4) if not np.isnan(bias) else None,
+            "SRMSE": round(srmse, 4) if not np.isnan(srmse) else None,
             "Durbin-Watson": round(dw, 3) if not np.isnan(dw) else None
         })
     
@@ -163,6 +185,8 @@ def evaluate_pymc_fit(
         
         r2 = calculate_r2(actual, expected)
         mape = calculate_mape(actual, expected)
+        bias = calculate_bias(actual, expected)
+        srmse = calculate_srmse(actual, expected)
         dw = calculate_durbin_watson(actual - expected)
         
         results.append({
@@ -170,6 +194,8 @@ def evaluate_pymc_fit(
             "Geo": geo_label,
             "R²": round(r2, 4) if not np.isnan(r2) else None,
             "MAPE (%)": round(mape, 2) if not np.isnan(mape) else None,
+            "Bias": round(bias, 4) if not np.isnan(bias) else None,
+            "SRMSE": round(srmse, 4) if not np.isnan(srmse) else None,
             "Durbin-Watson": round(dw, 3) if not np.isnan(dw) else None
         })
     

@@ -401,19 +401,6 @@ def create_summary_tables(
         print("\n=== Performance Metrics ===")
         print(performance_df)
     
-    # Generate comparison plots
-    visualization.plot_runtime_comparison(runtime_df)
-    visualization.plot_ess_comparison(ess_df)
-    
-    # Plot ESS/s comparison if available
-    if 'ess_per_second_df' in locals() and not ess_per_second_df.empty:
-        visualization.plot_ess_per_second_comparison(ess_per_second_df)
-    
-    if all_performance_rows:
-        visualization.plot_performance_metrics(performance_df)
-    
-    if all_diagnostics_rows:
-        visualization.plot_diagnostics_summary(diagnostics_df)
 
 
 def main() -> None:
