@@ -301,6 +301,62 @@ def create_summary_tables(
     print("\n=== ESS Summary ===")
     print(ess_pivot)
     
+    # Calculate and save ESS/s (Effective Sample Size per second)
+    if ess_rows and runtime_data:
+        # Reshape runtime data for merging
+        runtime_melted = runtime_df.reset_index().melt(
+            id_vars="Dataset",
+            var_name="Sampler",
+            value_name="Runtime"
+        )
+        
+        # Reshape ESS data to wide format
+        ess_wide = ess_df.pivot_table(
+            index=["Dataset", "Sampler"],
+            columns="ESS",
+            values="value"
+        ).reset_index()
+        
+        # Merge ESS and runtime data
+        ess_with_runtime = ess_wide.merge(
+            runtime_melted,
+            on=["Dataset", "Sampler"],
+            how="inner"
+        )
+        
+        # Calculate ESS/s for each metric
+        ess_per_second_rows = []
+        for _, row in ess_with_runtime.iterrows():
+            for metric in ["min", "q10", "q50", "q90"]:
+                if metric in row and pd.notna(row[metric]) and row["Runtime"] > 0:
+                    ess_per_second_rows.append({
+                        "Dataset": row["Dataset"],
+                        "Sampler": row["Sampler"],
+                        "Metric": f"{metric}_per_s",
+                        "ESS_per_s": row[metric] / row["Runtime"]
+                    })
+        
+        # Create ESS/s DataFrame
+        ess_per_second_df = pd.DataFrame(ess_per_second_rows)
+        
+        if not ess_per_second_df.empty:
+            # Save ESS/s summary
+            storage.save_summary_dataframe(ess_per_second_df, "ess_per_second_comparison")
+            
+            # Pivot for display
+            ess_per_s_pivot = ess_per_second_df.pivot_table(
+                index=["Dataset", "Sampler"],
+                columns="Metric",
+                values="ESS_per_s"
+            )
+            
+            # Sort by median ESS/s (q50_per_s)
+            if "q50_per_s" in ess_per_s_pivot.columns:
+                ess_per_s_pivot = ess_per_s_pivot.sort_values("q50_per_s", ascending=False)
+            
+            print("\n=== ESS/s (Efficiency) Summary ===")
+            print(ess_per_s_pivot.round(2))
+    
     # Save diagnostics summary
     if all_diagnostics_rows:
         diagnostics_df = pd.concat(all_diagnostics_rows, ignore_index=True)
@@ -321,6 +377,10 @@ def create_summary_tables(
     # Generate comparison plots
     visualization.plot_runtime_comparison(runtime_df)
     visualization.plot_ess_comparison(ess_df)
+    
+    # Plot ESS/s comparison if available
+    if 'ess_per_second_df' in locals() and not ess_per_second_df.empty:
+        visualization.plot_ess_per_second_comparison(ess_per_second_df)
     
     if all_performance_rows:
         visualization.plot_performance_metrics(performance_df)

@@ -278,6 +278,71 @@ def plot_performance_metrics(
     plt.close('all')
 
 
+def plot_ess_per_second_comparison(
+    ess_per_second_df: pd.DataFrame,
+    save: bool = True
+) -> None:
+    """Plot ESS per second (efficiency) comparison across models.
+    
+    Parameters
+    ----------
+    ess_per_second_df : pd.DataFrame
+        ESS per second comparison dataframe
+    save : bool
+        Whether to save the plot
+    """
+    # Pivot data for plotting
+    pivot_data = ess_per_second_df.pivot_table(
+        index=['Dataset', 'Sampler'],
+        columns='Metric',
+        values='ESS_per_s'
+    ).reset_index()
+    
+    # Create figure with subplots for each metric
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    
+    metrics = ['min_per_s', 'q10_per_s', 'q50_per_s', 'q90_per_s']
+    metric_labels = ['Min ESS/s', 'Q10 ESS/s', 'Median ESS/s', 'Q90 ESS/s']
+    
+    for ax, metric, label in zip(axes.flat, metrics, metric_labels):
+        if metric in pivot_data.columns:
+            # Group by dataset for grouped bar chart
+            datasets = pivot_data['Dataset'].unique()
+            samplers = pivot_data['Sampler'].unique()
+            
+            x = np.arange(len(datasets))
+            width = 0.8 / len(samplers)
+            
+            for i, sampler in enumerate(samplers):
+                sampler_data = pivot_data[pivot_data['Sampler'] == sampler]
+                values = []
+                for dataset in datasets:
+                    dataset_value = sampler_data[sampler_data['Dataset'] == dataset][metric].values
+                    values.append(dataset_value[0] if len(dataset_value) > 0 else 0)
+                
+                offset = width * (i - len(samplers) / 2 + 0.5)
+                ax.bar(x + offset, values, width, label=sampler)
+            
+            ax.set_xlabel('Dataset')
+            ax.set_ylabel('ESS per second')
+            ax.set_title(label)
+            ax.set_xticks(x)
+            ax.set_xticklabels(datasets, rotation=45, ha='right')
+            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
+            ax.grid(True, alpha=0.3)
+    
+    plt.suptitle('ESS/s (Sampling Efficiency) Comparison', fontsize=16, fontweight='bold')
+    plt.tight_layout()
+    
+    if save:
+        plot_path = Path("data/results/summary/combined_plots/ess_per_second_comparison.png")
+        plot_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(plot_path, bbox_inches='tight', dpi=100)
+        print(f"  ✓ Saved ESS/s comparison plot to {plot_path}")
+    
+    plt.close('all')
+
+
 def plot_diagnostics_summary(
     diagnostics_df: pd.DataFrame,
     save: bool = True
