@@ -10,7 +10,9 @@ from . import diagnostics
 
 
 def fit_meridian(
-    meridian_model: model.Meridian,
+    data_df: pd.DataFrame,
+    channel_columns: list,
+    control_columns: list,
     n_chains: int,
     n_draws: int,
     n_tune: int,
@@ -19,10 +21,17 @@ def fit_meridian(
 ) -> Tuple[model.Meridian, float, Dict[str, Optional[float]]]:
     """Fit Meridian model with specified sampling parameters.
     
+    Builds a fresh model from scratch and fits it, ensuring fair timing
+    that includes model building and data preparation.
+    
     Parameters
     ----------
-    meridian_model : model.Meridian
-        Meridian model to fit
+    data_df : pd.DataFrame
+        Dataset
+    channel_columns : list
+        Channel column names
+    control_columns : list
+        Control column names
     n_chains : int
         Number of chains
     n_draws : int
@@ -41,10 +50,19 @@ def fit_meridian(
     """
     print(f"  Fitting Meridian with {n_chains} chains, {n_draws} draws, {n_tune} tune steps")
     
-    model_copy = deepcopy(meridian_model)
+    # Import here to avoid circular dependency
+    from . import model_builder
+
+    # Start timing BEFORE building the model to include all preparation time
     start = time.perf_counter()
     
-    model_copy.sample_posterior(
+    # Build a fresh model from scratch (includes all data preparation)
+    meridian_model = model_builder.build_meridian_model(
+        data_df, channel_columns, control_columns
+    )
+    
+    # Sample posterior
+    meridian_model.sample_posterior(
         n_chains=n_chains,
         n_adapt=int(n_tune / 2),
         n_burnin=int(n_tune / 2),
@@ -54,11 +72,11 @@ def fit_meridian(
     )
     
     runtime = time.perf_counter() - start
-    ess = diagnostics.compute_ess(model_copy.inference_data)
+    ess = diagnostics.compute_ess(meridian_model.inference_data)
     
     print(f"  ✓ Meridian: {runtime:.1f}s, ESS min: {ess.get('min', 'N/A')}")
     
-    return model_copy, runtime, ess
+    return meridian_model, runtime, ess
 
 
 def fit_pymc(
@@ -112,11 +130,12 @@ def fit_pymc(
     if sampler == "nutpie":
         kwargs = {"nuts_sampler_kwargs": {"backend": "jax", "gradient_backend": "jax"}}
     
+    # Import here to avoid circular dependency
+    from . import model_builder
+
     # Start timing BEFORE building the model to include compilation time
     start = time.perf_counter()
     
-    # Import here to avoid circular dependency
-    from . import model_builder
     
     # Build a fresh model from scratch (includes model compilation)
     pymc_model = model_builder.build_pymc_model(

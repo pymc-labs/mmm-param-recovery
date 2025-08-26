@@ -157,11 +157,10 @@ def run_benchmark_for_dataset(
         if not args.force_rerun and storage.model_exists(dataset_name, "meridian"):
             meridian_result, runtime, ess = storage.load_meridian_model(dataset_name)
         else:
-            meridian_model = model_builder.build_meridian_model(
-                data_df, channel_columns, control_columns
-            )
             meridian_result, runtime, ess = model_fitter.fit_meridian(
-                meridian_model,
+                data_df,
+                channel_columns,
+                control_columns,
                 args.chains,
                 args.draws,
                 args.tune,
