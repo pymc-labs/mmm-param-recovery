@@ -43,6 +43,7 @@ Modular components for model comparison:
   - Posterior predictive checks
   - Runtime/ESS comparisons
   - Performance metrics visualization
+  - Model comparison plots (Meridian vs PyMC)
 
 - **storage.py**: Model persistence
   - `save_meridian_model()`, `save_pymc_model()`
@@ -341,7 +342,8 @@ data/results/
 │   ├── pymc_{sampler}_model.nc     # PyMC models
 │   └── plots/                      # Visualizations
 │       ├── posterior_predictive_meridian.png
-│       └── posterior_predictive_pymc_{sampler}.png
+│       ├── posterior_predictive_pymc_{sampler}.png
+│       └── model_comparison.png    # Combined comparison plot
 └── summary/
     ├── runtime_comparison.csv      # Performance tables
     ├── ess_comparison.csv
@@ -390,8 +392,20 @@ mprof plot
 3. **Poor convergence**: Increase tune steps or adjust priors
 4. **Data mismatch**: Verify geo column exists and matches region names
 
+## Visualization Features
+
+### Model Comparison Plot
+The `plot_model_comparison()` function creates a comprehensive comparison between Meridian and PyMC-Marketing predictions:
+- Shows actual data in black
+- Meridian predictions in blue with 50% and 94% HDI bands
+- PyMC predictions in orange with 50% and 94% HDI bands  
+- Automatically generated when both models are fitted
+- Saved as `model_comparison.png` in the plots directory
+
 ## Important Notes
 - Never modify `data_generator` module - use as-is
 - Always use absolute paths in file operations
 - Models are cached by default - use `--force-rerun` to regenerate
 - Geo-level modeling requires `dims=("geo",)` in PyMC-Marketing
+- All posterior predictive plots saved as PNG with improved aspect ratios
+- Model comparison plots use 10:6 aspect ratio per geo for better visibility

@@ -224,6 +224,20 @@ def run_benchmark_for_dataset(
                 )
     
     results["performance"] = all_performance_rows
+    
+    # Generate comparison plot if both models exist
+    if "Meridian" in results and "PyMC-Marketing - nutpie" in results and not args.plots_only:
+        print("\n--- Generating Model Comparison Plot ---")
+        meridian_result, _, _ = results["Meridian"]
+        pymc_nutpie_result, _, _ = results["PyMC-Marketing - nutpie"]
+        
+        visualization.plot_model_comparison(
+            meridian_result,
+            pymc_nutpie_result,
+            data_df,
+            dataset_name
+        )
+    
     return results
 
 
