@@ -101,24 +101,44 @@ def compute_rhat(
         return {'max': np.nan, 'bad_count': -1}
 
 
-def compute_model_size_mb(model: Any) -> float:
+def compute_model_size_mb(dataset_name: str = None, library: str = None, sampler: str = None) -> float:
     """Compute model size in megabytes.
     
     Parameters
     ----------
-    model : Any
-        Model object
+    dataset_name : str, optional
+        Dataset name for finding saved model file
+    library : str, optional  
+        Library name ('meridian' or 'pymc')
+    sampler : str, optional
+        Sampler name for PyMC models
         
     Returns
     -------
     float
         Model size in MB
     """
-    try:
-        size_bytes = asizeof.asizeof(model)
-        return size_bytes / (1024 ** 2)
-    except Exception:
-        return -1.0
+    from pathlib import Path
+    
+    # Convert bytes to megabytes
+    BYTES_TO_MB = 1024 ** 2
+    
+    # Try to get file size for Meridian models
+    if library and library.lower() == "meridian" and dataset_name:
+        model_path = Path(f"data/results/{dataset_name}/meridian_model.pkl")
+        if model_path.exists():
+            size_bytes = model_path.stat().st_size
+            return size_bytes / BYTES_TO_MB
+    
+    # Try to get file size for PyMC models
+    if library and "pymc" in library.lower() and dataset_name and sampler:
+        model_path = Path(f"data/results/{dataset_name}/pymc_{sampler}_model.nc")
+        if model_path.exists():
+            size_bytes = model_path.stat().st_size
+            return size_bytes / BYTES_TO_MB
+    
+    # Return -1 if model file not found or invalid parameters
+    return -1.0
 
 
 def get_meridian_var_names() -> List[str]:
@@ -180,16 +200,21 @@ def create_diagnostics_summary(
         if "meridian" in key.lower():
             var_names = get_meridian_var_names()
             idata = model.inference_data if hasattr(model, 'inference_data') else None
+            library = "meridian"
+            sampler = None
         else:
             var_names = get_pymc_var_names()
             idata = model.idata if hasattr(model, 'idata') else None
+            library = "pymc"
+            # Extract sampler from key like "PyMC-Marketing - nutpie"
+            sampler = key.split(" - ")[-1] if " - " in key else None
         
         if idata is None:
             continue
         
         divergences = compute_divergences(idata)
         rhat = compute_rhat(idata, var_names)
-        size_mb = compute_model_size_mb(model)
+        size_mb = compute_model_size_mb(dataset_name, library, sampler)
         
         rows.append({
             'Dataset': dataset_name,
