@@ -421,6 +421,7 @@ mprof plot
 2. **Slow sampling**: Check target_accept (0.9 recommended)
 3. **Poor convergence**: Increase tune steps or adjust priors
 4. **Data mismatch**: Verify geo column exists and matches region names
+5. **Meridian shape mismatch**: Multi-geo incremental_outcome aggregates across geos (see Meridian Internals section)
 
 ## Visualization Features
 
@@ -439,3 +440,33 @@ The `plot_model_comparison()` function creates a comprehensive comparison betwee
 - Geo-level modeling requires `dims=("geo",)` in PyMC-Marketing
 - All posterior predictive plots saved as PNG with improved aspect ratios
 - Model comparison plots use 10:6 aspect ratio per geo for better visibility
+
+## Meridian Internals and Quirks
+
+### Channel Contribution Extraction
+1. **Critical parameter for geo-level contributions**: The `incremental_outcome()` method has an `aggregate_geos` parameter that **defaults to True**
+   - Must pass `aggregate_geos=False` to get per-geo contributions
+   - With `aggregate_geos=False`: Returns shape `(n_chains, n_draws, n_geos, n_times, n_channels)`
+   - With `aggregate_geos=True` (default): Returns shape `(n_chains, n_draws, n_times, n_channels)` - aggregated across geos
+   
+2. **Geo naming**: Meridian uses 'national_geo' for single-geo models, needs mapping to actual geo names
+
+3. **Proper extraction**: 
+   ```python
+   incremental_outcomes = analyzer.incremental_outcome(
+       aggregate_times=False,
+       aggregate_geos=False,  # CRITICAL: Must be False for per-geo
+       use_kpi=False,
+       use_posterior=True
+   )
+   ```
+
+### PyMC-Marketing Channel Contributions
+1. **Correct extraction**: Use `idata.posterior["channel_contribution_original_scale"]` not `posterior_predictive`
+2. **Dimension order**: `(chain, draw, date, geo, channel)`
+3. **ArviZ averaging**: Use `.mean(dim=['chain', 'draw'])` for posterior means
+
+### Channel Naming Patterns
+- Channels use descriptive names: `x1_Search-Ads`, not just `x1`
+- Ground truth contributions: `contribution_x1_Search-Ads`
+- Consistent across both libraries after extraction

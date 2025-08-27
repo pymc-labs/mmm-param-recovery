@@ -1,8 +1,9 @@
 """Model evaluation functions for performance metrics."""
 
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 import numpy as np
 import pandas as pd
+import xarray as xr
 from statsmodels.stats.stattools import durbin_watson
 from meridian.analysis import analyzer
 
@@ -39,7 +40,7 @@ def calculate_r2(actual: np.ndarray, predicted: np.ndarray) -> float:
 
 
 def calculate_mape(actual: np.ndarray, predicted: np.ndarray) -> float:
-    """Calculate Mean Absolute Percentage Error. Only takes data points that are not nan and not 0.
+    """Calculate Mean Absolute Percentage Error. Only takes data points that are not nan and close to 0.
     
     Parameters
     ----------
@@ -53,7 +54,7 @@ def calculate_mape(actual: np.ndarray, predicted: np.ndarray) -> float:
     float
         MAPE as percentage
     """
-    mask = ~np.isnan(actual) & ~np.isnan(predicted) & (actual != 0)
+    mask = ~np.isnan(actual) & ~np.isnan(predicted) & (np.abs(actual) > 1e-3)
     
     if mask.sum() == 0:
         return np.nan
@@ -75,11 +76,23 @@ def calculate_bias(actual: np.ndarray, predicted: np.ndarray) -> float:
 
 def calculate_srmse(actual: np.ndarray, predicted: np.ndarray) -> float:
     """Calculate standardised root mean squared error. Only takes data points that are not nan.
+    
+    Returns sRMSE as a fraction (not percentage).
     """
     mask = ~np.isnan(actual) & ~np.isnan(predicted)
     actual = actual[mask]
     predicted = predicted[mask]
-    return np.sqrt(np.mean((actual - predicted) ** 2)) / np.mean(actual)
+    
+    if len(actual) == 0:
+        return np.nan
+    
+    mean_actual = np.mean(actual)
+    
+    if mean_actual == 0:
+        return np.nan
+    
+    rmse = np.sqrt(np.mean((actual - predicted) ** 2))
+    return rmse / np.abs(mean_actual)
 
 
 def calculate_durbin_watson(residuals: np.ndarray) -> float:
@@ -246,33 +259,308 @@ def create_performance_summary(
     return final_df
 
 
-def calculate_contribution_recovery(
-    ground_truth: pd.DataFrame,
+def extract_meridian_channel_contributions(
     meridian_model: Any,
-    pymc_model: Any,
     channel_columns: List[str]
-) -> Dict[str, float]:
-    """Calculate contribution recovery metrics.
+) -> pd.DataFrame:
+    """Extract channel contributions from Meridian model.
     
     Parameters
     ----------
-    ground_truth : pd.DataFrame
-        Ground truth contributions
-    meridian_model : Any
+    meridian_model : meridian.model.model.Meridian
         Fitted Meridian model
-    pymc_model : Any
-        Fitted PyMC model
     channel_columns : List[str]
         Channel column names
         
     Returns
     -------
-    Dict[str, float]
-        Contribution recovery metrics
+    pd.DataFrame
+        Channel contributions with MultiIndex (date, geo) and columns for each channel
     """
-    # This is a placeholder - implement actual contribution recovery logic
-    # based on the notebook implementation
-    return {
-        "meridian_recovery_r2": 0.0,
-        "pymc_recovery_r2": 0.0
-    }
+    import tensorflow as tf
+    
+    model_analysis = analyzer.Analyzer(meridian_model)
+    
+    # Get incremental outcomes per geo
+    # IMPORTANT: aggregate_geos defaults to True, we need False for per-geo contributions
+    incremental_outcomes = model_analysis.incremental_outcome(
+        aggregate_times=False,
+        aggregate_geos=False,  # Critical: get per-geo contributions
+        use_kpi=False,  # Use revenue, not KPI
+        use_posterior=True
+    )
+    
+    # Take mean across chains and draws
+    # Shape should be (n_chains, n_draws, n_geos, n_times, n_channels) when aggregate_geos=False
+    mean_contributions = tf.reduce_mean(incremental_outcomes, axis=[0, 1])
+    
+    # Convert to numpy array - should be (n_geos, n_times, n_channels)
+    mean_contributions_np = mean_contributions.numpy()
+    
+    # Get geo and time coordinates from the model
+    geos = meridian_model.input_data.geo.coords["geo"].values
+    times = meridian_model.input_data.kpi.coords["time"].values
+    n_geos = len(geos)
+    n_times = len(times)
+    
+    # Map Meridian geo names to dataset geo names
+    # Meridian uses 'national_geo' for single-geo models, but dataset uses actual geo name
+    if n_geos == 1 and geos[0] == 'national_geo':
+        # For single-geo models, use 'Local' which is the common geo name in small_business
+        geos = ['Local']
+    
+    # Validate shape
+    if len(mean_contributions_np.shape) == 2:
+        # Shape is (n_times, n_channels) - single geo without geo dimension
+        n_channels = mean_contributions_np.shape[1]
+        # Reshape to add geo dimension
+        mean_contributions_np = mean_contributions_np.reshape(1, n_times, n_channels)
+    elif len(mean_contributions_np.shape) == 3:
+        # Shape is (n_geos, n_times, n_channels) - expected shape for multi-geo
+        if mean_contributions_np.shape[0] != n_geos:
+            raise ValueError(f"Geo dimension mismatch: got {mean_contributions_np.shape[0]}, expected {n_geos}")
+        if mean_contributions_np.shape[1] != n_times:
+            raise ValueError(f"Time dimension mismatch: got {mean_contributions_np.shape[1]}, expected {n_times}")
+    else:
+        raise ValueError(f"Unexpected shape for mean_contributions: {mean_contributions_np.shape}")
+    
+    # Create DataFrame with proper structure
+    contrib_list = []
+    for geo_idx in range(n_geos):
+        geo = geos[geo_idx]
+        
+        # Create MultiIndex for this geo
+        index = pd.MultiIndex.from_arrays(
+            [pd.to_datetime(times).strftime('%Y-%m-%d'), [geo] * n_times],
+            names=['date', 'geo']
+        )
+        
+        geo_df = pd.DataFrame(
+            mean_contributions_np[geo_idx, :, :],
+            columns=channel_columns[:mean_contributions_np.shape[2]],
+            index=index
+        )
+        contrib_list.append(geo_df)
+    
+    return pd.concat(contrib_list)
+
+
+def extract_pymc_channel_contributions(
+    pymc_model: Any,
+    channel_columns: List[str]
+) -> pd.DataFrame:
+    """Extract channel contributions from PyMC-Marketing model.
+    
+    Parameters
+    ----------
+    pymc_model : MMM
+        Fitted PyMC-Marketing model
+    channel_columns : List[str]
+        Channel column names
+        
+    Returns
+    -------
+    pd.DataFrame
+        Channel contributions with MultiIndex (date, geo) and columns for each channel
+    """
+    # Get channel contributions - shape: (chain, draw, date, geo, channel)
+    contribution_da = pymc_model.idata["posterior"]["channel_contribution_original_scale"]
+    
+    # Take mean across chains and draws
+    mean_contrib = contribution_da.mean(['chain', 'draw'])
+    
+    # Convert to DataFrame with proper structure
+    contrib_list = []
+    for geo_idx, geo in enumerate(mean_contrib.geo.values):
+        # Convert dates to string format for consistency
+        dates = pd.to_datetime(mean_contrib.date.values).strftime('%Y-%m-%d')
+        
+        # Create MultiIndex for this geo
+        index = pd.MultiIndex.from_arrays(
+            [dates, [geo] * len(dates)],
+            names=['date', 'geo']
+        )
+        
+        geo_df = pd.DataFrame(
+            mean_contrib.sel(geo=geo).values,
+            columns=channel_columns,
+            index=index
+        )
+        contrib_list.append(geo_df)
+    
+    return pd.concat(contrib_list)
+
+
+def evaluate_channel_contributions(
+    true_contributions: pd.DataFrame,
+    predicted_contributions: pd.DataFrame,
+    channel_columns: List[str],
+    model_name: str,
+    dataset_name: str
+) -> Tuple[pd.DataFrame, Dict[str, float]]:
+    """Evaluate channel contribution reconstruction per channel-region combination.
+    
+    Parameters
+    ----------
+    true_contributions : pd.DataFrame
+        Ground truth contributions with columns like 'contribution_x1'
+    predicted_contributions : pd.DataFrame
+        Predicted contributions with columns like 'x1'
+    channel_columns : List[str]
+        Channel column names
+    model_name : str
+        Name of the model (e.g., "Meridian", "PyMC-Marketing - pymc")
+    dataset_name : str
+        Name of the dataset
+        
+    Returns
+    -------
+    Tuple[pd.DataFrame, Dict[str, float]]
+        - DataFrame with per-channel-region metrics (for CSV export)
+        - Dictionary with averaged metrics across channels and regions
+    """
+    channel_metrics = []
+    
+    # Fix index structure for true_contributions if needed
+    if 'time' in true_contributions.columns and 'geo' in true_contributions.columns:
+        # truth_df was reset_index, so recreate the MultiIndex
+        true_contributions['time'] = true_contributions['time'].astype(str)
+        true_contributions = true_contributions.set_index(['time', 'geo'])
+        # Rename index to match predicted
+        true_contributions.index.names = ['date', 'geo']
+    
+    # Get unique regions from the data
+    regions = predicted_contributions.index.get_level_values('geo').unique()
+    
+    for region in regions:
+        # Filter data for this region
+        true_region = true_contributions[true_contributions.index.get_level_values('geo') == region]
+        pred_region = predicted_contributions[predicted_contributions.index.get_level_values('geo') == region]
+        
+        for channel in channel_columns:
+            # Get true contribution column name
+            true_col = f"contribution_{channel}"
+            
+            if true_col not in true_region.columns:
+                continue
+                
+            if channel not in pred_region.columns:
+                continue
+                
+            # Get values for this channel-region combination
+            true_values = true_region[true_col].values
+            pred_values = pred_region[channel].values
+            
+            # Ensure same length (should be after filtering by region)
+            if len(true_values) != len(pred_values):
+                print(f"Warning: Length mismatch for {channel} in {region}: true={len(true_values)}, pred={len(pred_values)}")
+                continue
+            
+            # Calculate metrics for this channel-region combination
+            bias = calculate_bias(true_values, pred_values)
+            srmse = calculate_srmse(true_values, pred_values)
+            r2 = calculate_r2(true_values, pred_values)
+            mape = calculate_mape(true_values, pred_values)
+            
+            channel_metrics.append({
+                "Dataset": dataset_name,
+                "Model": model_name,
+                "Channel": channel,
+                "Region": region,
+                "Bias": bias,
+                "SRMSE": srmse,
+                "R²": r2,
+                "MAPE (%)": mape
+            })
+    
+    # Create DataFrame for per-channel-region results
+    channel_df = pd.DataFrame(channel_metrics)
+    
+    # Calculate averages across all channel-region combinations
+    if len(channel_df) > 0:
+        avg_metrics = {
+            "avg_bias": channel_df["Bias"].mean(),
+            "avg_srmse": channel_df["SRMSE"].mean(),
+            "avg_r2": channel_df["R²"].mean(),
+            "avg_mape": channel_df["MAPE (%)"].mean()
+        }
+    else:
+        avg_metrics = {
+            "avg_bias": np.nan,
+            "avg_srmse": np.nan,
+            "avg_r2": np.nan,
+            "avg_mape": np.nan
+        }
+    
+    return channel_df, avg_metrics
+
+
+def evaluate_meridian_channel_contributions(
+    meridian_model: Any,
+    truth_df: pd.DataFrame,
+    channel_columns: List[str],
+    dataset_name: str
+) -> Tuple[pd.DataFrame, Dict[str, float]]:
+    """Evaluate Meridian channel contribution reconstruction.
+    
+    Parameters
+    ----------
+    meridian_model : meridian.model.model.Meridian
+        Fitted Meridian model
+    truth_df : pd.DataFrame
+        Ground truth dataframe with contribution columns
+    channel_columns : List[str]
+        Channel column names
+    dataset_name : str
+        Name of the dataset
+        
+    Returns
+    -------
+    Tuple[pd.DataFrame, Dict[str, float]]
+        Per-channel metrics DataFrame and averaged metrics
+    """
+    predicted_contrib = extract_meridian_channel_contributions(
+        meridian_model, channel_columns
+    )
+    
+    return evaluate_channel_contributions(
+        truth_df, predicted_contrib, channel_columns,
+        "Meridian", dataset_name
+    )
+
+
+def evaluate_pymc_channel_contributions(
+    pymc_model: Any,
+    truth_df: pd.DataFrame,
+    channel_columns: List[str],
+    sampler: str,
+    dataset_name: str
+) -> Tuple[pd.DataFrame, Dict[str, float]]:
+    """Evaluate PyMC-Marketing channel contribution reconstruction.
+    
+    Parameters
+    ----------
+    pymc_model : MMM
+        Fitted PyMC-Marketing model
+    truth_df : pd.DataFrame
+        Ground truth dataframe with contribution columns
+    channel_columns : List[str]
+        Channel column names
+    sampler : str
+        Sampler name
+    dataset_name : str
+        Name of the dataset
+        
+    Returns
+    -------
+    Tuple[pd.DataFrame, Dict[str, float]]
+        Per-channel metrics DataFrame and averaged metrics
+    """
+    predicted_contrib = extract_pymc_channel_contributions(
+        pymc_model, channel_columns
+    )
+    
+    return evaluate_channel_contributions(
+        truth_df, predicted_contrib, channel_columns,
+        f"PyMC-Marketing - {sampler}", dataset_name
+    )

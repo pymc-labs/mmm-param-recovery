@@ -149,6 +149,8 @@ def run_benchmark_for_dataset(
         Results dictionary with fitted models and metrics
     """
     all_performance_rows = []
+    all_channel_contribution_rows = []
+    channel_contribution_averages = []
     
     # PHASE 1: Fit and save models (if needed) with memory isolation
     if not args.plots_only:
@@ -212,6 +214,17 @@ def run_benchmark_for_dataset(
             row["Dataset"] = dataset_name
         all_performance_rows.extend(perf_rows)
         
+        # Evaluate channel contributions
+        channel_df, avg_metrics = evaluation.evaluate_meridian_channel_contributions(
+            meridian_result, truth_df, channel_columns, dataset_name
+        )
+        all_channel_contribution_rows.append(channel_df)
+        channel_contribution_averages.append({
+            "Dataset": dataset_name,
+            "Model": "Meridian",
+            **avg_metrics
+        })
+        
         visualization.plot_meridian_posterior_predictive(
             meridian_result, data_df, dataset_name
         )
@@ -232,11 +245,24 @@ def run_benchmark_for_dataset(
                     row["Dataset"] = dataset_name
                 all_performance_rows.extend(perf_rows)
                 
+                # Evaluate channel contributions
+                channel_df, avg_metrics = evaluation.evaluate_pymc_channel_contributions(
+                    pymc_result, truth_df, channel_columns, sampler, dataset_name
+                )
+                all_channel_contribution_rows.append(channel_df)
+                channel_contribution_averages.append({
+                    "Dataset": dataset_name,
+                    "Model": f"PyMC-Marketing - {sampler}",
+                    **avg_metrics
+                })
+                
                 visualization.plot_pymc_posterior_predictive(
                     pymc_result, data_df, dataset_name, sampler
                 )
     
     results["performance"] = all_performance_rows
+    results["channel_contributions"] = all_channel_contribution_rows
+    results["channel_averages"] = channel_contribution_averages
     
     # Generate comparison plot if both models exist
     if "Meridian" in results and "PyMC-Marketing - nutpie" in results:
@@ -272,6 +298,8 @@ def create_summary_tables(
     ess_rows = []
     all_diagnostics_rows = []
     all_performance_rows = []
+    all_channel_contribution_dfs = []
+    all_channel_averages = []
     
     for dataset_name in dataset_names:
         dataset_results = all_results[dataset_name]
@@ -280,6 +308,12 @@ def create_summary_tables(
         for key, value in dataset_results.items():
             if key == "performance":
                 all_performance_rows.extend(value)
+                continue
+            elif key == "channel_contributions":
+                all_channel_contribution_dfs.extend(value)
+                continue
+            elif key == "channel_averages":
+                all_channel_averages.extend(value)
                 continue
             
             model, runtime, ess = value
@@ -302,9 +336,13 @@ def create_summary_tables(
                     "value": metric_value
                 })
         
-        # Create diagnostics summary
+        # Create diagnostics summary - filter out non-model entries
+        model_results = {
+            k: v for k, v in dataset_results.items() 
+            if k not in ["performance", "channel_contributions", "channel_averages"]
+        }
         diag_df = diagnostics.create_diagnostics_summary(
-            {k: v for k, v in dataset_results.items() if k != "performance"},
+            model_results,
             dataset_name
         )
         all_diagnostics_rows.append(diag_df)
@@ -400,6 +438,26 @@ def create_summary_tables(
         storage.save_summary_dataframe(performance_df, "performance_metrics")
         print("\n=== Performance Metrics ===")
         print(performance_df)
+    
+    # Save channel contribution metrics
+    if all_channel_contribution_dfs:
+        # Combine all per-channel DataFrames
+        channel_metrics_df = pd.concat(all_channel_contribution_dfs, ignore_index=True)
+        storage.save_summary_dataframe(channel_metrics_df, "channel_contribution_metrics")
+        print("\n=== Channel Contribution Metrics (Per Channel) ===")
+        print(channel_metrics_df.head(10))
+        print(f"... ({len(channel_metrics_df)} total rows)")
+        
+        # Generate channel contribution plots
+        visualization.plot_channel_contribution_distributions(channel_metrics_df)
+        visualization.plot_channel_metrics_comparison(channel_metrics_df)
+        
+    # Save channel contribution averages
+    if all_channel_averages:
+        channel_avg_df = pd.DataFrame(all_channel_averages)
+        storage.save_summary_dataframe(channel_avg_df, "channel_contribution_averages")
+        print("\n=== Channel Contribution Averages ===")
+        print(channel_avg_df.round(4))
     
 
 

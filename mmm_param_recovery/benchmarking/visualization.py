@@ -484,3 +484,193 @@ def plot_model_comparison(
     plt.close('all')
 
 
+def plot_channel_contribution_distributions(
+    channel_metrics_df: pd.DataFrame,
+    save: bool = True
+) -> None:
+    """Plot distributions of bias and sRMSE for channel contributions.
+    
+    Parameters
+    ----------
+    channel_metrics_df : pd.DataFrame
+        DataFrame with channel contribution metrics
+    save : bool
+        Whether to save the plot
+    """
+    # Set up the plot with two subplots
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    
+    # Define color palette for models
+    model_colors = {
+        'Meridian': '#1f77b4',
+        'PyMC-Marketing - pymc': '#ff7f0e', 
+        'PyMC-Marketing - blackjax': '#2ca02c',
+        'PyMC-Marketing - numpyro': '#d62728',
+        'PyMC-Marketing - nutpie': '#9467bd'
+    }
+    
+    # Plot 1: Bias Distribution
+    ax1 = axes[0]
+    for model in channel_metrics_df['Model'].unique():
+        model_data = channel_metrics_df[channel_metrics_df['Model'] == model]['Bias']
+        color = model_colors.get(model, '#333333')
+        
+        # Plot violin plot
+        parts = ax1.violinplot(
+            [model_data.values],
+            positions=[list(channel_metrics_df['Model'].unique()).index(model)],
+            widths=0.7,
+            showmeans=True,
+            showmedians=True
+        )
+        
+        # Color the violin
+        for pc in parts['bodies']:
+            pc.set_facecolor(color)
+            pc.set_alpha(0.6)
+        for partname in ('cbars', 'cmins', 'cmaxes', 'cmedians', 'cmeans'):
+            if partname in parts:
+                parts[partname].set_color(color)
+                parts[partname].set_linewidth(1.5)
+    
+    ax1.set_xticks(range(len(channel_metrics_df['Model'].unique())))
+    ax1.set_xticklabels(channel_metrics_df['Model'].unique(), rotation=45, ha='right')
+    ax1.set_xlabel('Model', fontsize=12)
+    ax1.set_ylabel('Bias', fontsize=12)
+    ax1.set_title('Distribution of Channel Contribution Bias', fontsize=14, fontweight='bold')
+    ax1.axhline(y=0, color='black', linestyle='--', alpha=0.3)
+    ax1.grid(True, alpha=0.3)
+    
+    # Plot 2: sRMSE Distribution
+    ax2 = axes[1]
+    for model in channel_metrics_df['Model'].unique():
+        model_data = channel_metrics_df[channel_metrics_df['Model'] == model]['SRMSE']
+        color = model_colors.get(model, '#333333')
+        
+        # Plot violin plot
+        parts = ax2.violinplot(
+            [model_data.values],
+            positions=[list(channel_metrics_df['Model'].unique()).index(model)],
+            widths=0.7,
+            showmeans=True,
+            showmedians=True
+        )
+        
+        # Color the violin
+        for pc in parts['bodies']:
+            pc.set_facecolor(color)
+            pc.set_alpha(0.6)
+        for partname in ('cbars', 'cmins', 'cmaxes', 'cmedians', 'cmeans'):
+            if partname in parts:
+                parts[partname].set_color(color)
+                parts[partname].set_linewidth(1.5)
+    
+    ax2.set_xticks(range(len(channel_metrics_df['Model'].unique())))
+    ax2.set_xticklabels(channel_metrics_df['Model'].unique(), rotation=45, ha='right')
+    ax2.set_xlabel('Model', fontsize=12)
+    ax2.set_ylabel('sRMSE', fontsize=12)
+    ax2.set_title('Distribution of Channel Contribution sRMSE', fontsize=14, fontweight='bold')
+    ax2.axhline(y=1.0, color='red', linestyle='--', alpha=0.3, label='sRMSE = 1.0')
+    ax2.grid(True, alpha=0.3)
+    ax2.legend()
+    
+    # Overall title
+    fig.suptitle('Channel Contribution Recovery Metrics Distribution', fontsize=16, fontweight='bold')
+    plt.tight_layout()
+    
+    if save:
+        plot_path = Path("data/results/summary/combined_plots")
+        plot_path.mkdir(parents=True, exist_ok=True)
+        plot_file = plot_path / "channel_metrics_distribution.png"
+        plt.savefig(plot_file, bbox_inches='tight', dpi=100)
+        print(f"  ✓ Saved channel metrics distribution plot to {plot_file}")
+    
+    plt.close('all')
+
+
+def plot_channel_metrics_comparison(
+    channel_metrics_df: pd.DataFrame,
+    save: bool = True
+) -> None:
+    """Plot detailed comparison of channel metrics across models.
+    
+    Parameters
+    ----------
+    channel_metrics_df : pd.DataFrame
+        DataFrame with channel contribution metrics (including Region column if multi-region)
+    save : bool
+        Whether to save the plot
+    """
+    # Set up the plot with 2x2 subplots
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    
+    # Define color palette for models
+    model_colors = {
+        'Meridian': '#1f77b4',
+        'PyMC-Marketing - pymc': '#ff7f0e', 
+        'PyMC-Marketing - blackjax': '#2ca02c',
+        'PyMC-Marketing - numpyro': '#d62728',
+        'PyMC-Marketing - nutpie': '#9467bd'
+    }
+    
+    metrics = ['Bias', 'SRMSE', 'R²', 'MAPE (%)']
+    
+    for idx, metric in enumerate(metrics):
+        ax = axes[idx // 2, idx % 2]
+        
+        # Create box plot for each channel
+        channels = channel_metrics_df['Channel'].unique()
+        x_pos = np.arange(len(channels))
+        width = 0.15
+        
+        for i, model in enumerate(channel_metrics_df['Model'].unique()):
+            model_data = channel_metrics_df[channel_metrics_df['Model'] == model]
+            
+            # Average across regions for each channel
+            values = []
+            for ch in channels:
+                ch_data = model_data[model_data['Channel'] == ch][metric]
+                if len(ch_data) > 0:
+                    values.append(ch_data.mean())  # Average across regions
+                else:
+                    values.append(np.nan)
+            
+            color = model_colors.get(model, '#333333')
+            offset = (i - len(channel_metrics_df['Model'].unique())/2) * width
+            
+            ax.bar(x_pos + offset, values, width, 
+                  label=model.replace('PyMC-Marketing - ', 'PyMC-'),
+                  color=color, alpha=0.7)
+        
+        ax.set_xlabel('Channel', fontsize=11)
+        ax.set_ylabel(f'{metric} (avg across regions)', fontsize=11)
+        ax.set_title(f'{metric} by Channel and Model', fontsize=12, fontweight='bold')
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels([ch.replace('_', '\n') for ch in channels], fontsize=9)
+        
+        # Add reference lines
+        if metric == 'Bias':
+            ax.axhline(y=0, color='black', linestyle='--', alpha=0.3)
+        elif metric == 'SRMSE':
+            ax.axhline(y=1.0, color='red', linestyle='--', alpha=0.3)
+        elif metric == 'R²':
+            ax.axhline(y=0, color='black', linestyle='--', alpha=0.3)
+            ax.axhline(y=1, color='green', linestyle='--', alpha=0.3)
+        
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc='best', fontsize=8)
+    
+    # Overall title
+    fig.suptitle('Channel-Level Metric Comparison Across Models (Averaged Over Regions)', fontsize=16, fontweight='bold')
+    plt.tight_layout()
+    
+    if save:
+        plot_path = Path("data/results/summary/combined_plots")
+        plot_path.mkdir(parents=True, exist_ok=True)
+        plot_file = plot_path / "channel_metrics_comparison.png"
+        plt.savefig(plot_file, bbox_inches='tight', dpi=100)
+        print(f"  ✓ Saved channel metrics comparison plot to {plot_file}")
+    
+    plt.close('all')
+
+
