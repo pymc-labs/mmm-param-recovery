@@ -6,6 +6,7 @@ from typing import Dict, Optional, Any, Tuple
 import pandas as pd
 from meridian.model import model
 from pymc_marketing.mmm.multidimensional import MMM
+from rich.console import Console
 from . import diagnostics
 
 
@@ -17,7 +18,8 @@ def fit_meridian(
     n_draws: int,
     n_tune: int,
     target_accept: float,
-    seed: int
+    seed: int,
+    console: Optional[Console] = None
 ) -> Tuple[model.Meridian, float, Dict[str, Optional[float]]]:
     """Fit Meridian model with specified sampling parameters.
     
@@ -42,13 +44,17 @@ def fit_meridian(
         Target acceptance probability
     seed : int
         Random seed
+    console : Optional[Console]
+        Rich console for output
         
     Returns
     -------
     Tuple[model.Meridian, float, Dict]
         Fitted model, runtime in seconds, ESS statistics
     """
-    print(f"  Fitting Meridian with {n_chains} chains, {n_draws} draws, {n_tune} tune steps")
+    if console is None:
+        console = Console()
+    console.print(f"  Fitting Meridian with {n_chains} chains, {n_draws} draws, {n_tune} tune steps")
     
     # Import here to avoid circular dependency
     from . import model_builder
@@ -74,7 +80,7 @@ def fit_meridian(
     runtime = time.perf_counter() - start
     ess = diagnostics.compute_ess(meridian_model.inference_data)
     
-    print(f"  ✓ Meridian: {runtime:.1f}s, ESS min: {ess.get('min', 'N/A')}")
+    console.print(f"  [green]✓[/green] Meridian: {runtime:.1f}s, ESS min: {ess.get('min', 'N/A')}")
     
     return meridian_model, runtime, ess
 
@@ -88,7 +94,8 @@ def fit_pymc(
     n_draws: int,
     n_tune: int,
     target_accept: float,
-    seed: int
+    seed: int,
+    console: Optional[Console] = None
 ) -> Tuple[MMM, float, Dict[str, Optional[float]]]:
     """Fit PyMC-Marketing model with specified sampler.
     
@@ -115,13 +122,17 @@ def fit_pymc(
         Target acceptance probability
     seed : int
         Random seed
+    console : Optional[Console]
+        Rich console for output
         
     Returns
     -------
     Tuple[MMM, float, Dict]
         Fitted model, runtime in seconds, ESS statistics
     """
-    print(f"  Fitting PyMC-Marketing with {sampler}, {n_chains} chains, {n_draws} draws, {n_tune} tune steps")
+    if console is None:
+        console = Console()
+    console.print(f"  Fitting PyMC-Marketing with {sampler}, {n_chains} chains, {n_draws} draws, {n_tune} tune steps")
     
     x = data_df.drop(columns=["y"])
     y = data_df["y"]
@@ -165,12 +176,12 @@ def fit_pymc(
     runtime = time.perf_counter() - start
     ess = diagnostics.compute_ess(pymc_model.idata)
     
-    print(f"  ✓ PyMC-Marketing - {sampler}: {runtime:.1f}s, ESS min: {ess.get('min', 'N/A')}")
+    console.print(f"  [green]✓[/green] PyMC-Marketing - {sampler}: {runtime:.1f}s, ESS min: {ess.get('min', 'N/A')}")
     
     return pymc_model, runtime, ess
 
 
-def should_skip_sampler(sampler: str, dataset_name: str) -> bool:
+def should_skip_sampler(sampler: str, dataset_name: str, console: Optional[Console] = None) -> bool:
     """Check if a sampler should be skipped for a dataset.
     
     Parameters
@@ -179,13 +190,17 @@ def should_skip_sampler(sampler: str, dataset_name: str) -> bool:
         Sampler name
     dataset_name : str
         Dataset name
+    console : Optional[Console]
+        Rich console for output
         
     Returns
     -------
     bool
         True if sampler should be skipped
     """
+    if console is None:
+        console = Console()
     if sampler in ["blackjax", "numpyro"] and "large" in dataset_name:
-        print(f"  ⚠ Skipping {sampler} for large dataset (memory constraints)")
+        console.print(f"  [yellow]⚠[/yellow] Skipping {sampler} for large dataset (memory constraints)")
         return True
     return False
