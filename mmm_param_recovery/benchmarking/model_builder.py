@@ -114,6 +114,11 @@ def build_meridian_prior(
     return prior_distribution.PriorDistribution(
         beta_m=tfp.distributions.LogNormal(
             beta_m_mu, beta_m_sigma, name=constants.BETA_M
+        ),
+        # Set alpha_m to Beta(1, 3) to match PyMC-Marketing's fast decay prior
+        # This gives E[alpha] = 1/(1+3) = 0.25, favoring faster adstock decay
+        alpha_m=tfp.distributions.Beta(
+            1.0, 3.0, name=constants.ALPHA_M
         )
     )
 
