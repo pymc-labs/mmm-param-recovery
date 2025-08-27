@@ -8,6 +8,13 @@ import sys
 from typing import List, Dict, Any, Optional
 import pandas as pd
 import warnings
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.layout import Layout
+from rich.progress import track
+from rich import box
+from rich.text import Text
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -124,7 +131,8 @@ def run_benchmark_for_dataset(
     channel_columns: List[str],
     control_columns: List[str],
     truth_df: pd.DataFrame,
-    args: argparse.Namespace
+    args: argparse.Namespace,
+    console: Optional[Console] = None
 ) -> Dict[str, Any]:
     """Run benchmark for a single dataset with memory isolation.
     
@@ -142,24 +150,29 @@ def run_benchmark_for_dataset(
         Ground truth dataframe
     args : argparse.Namespace
         Command line arguments
+    console : Optional[Console]
+        Rich console for output
         
     Returns
     -------
     Dict[str, Any]
         Results dictionary with fitted models and metrics
     """
+    if console is None:
+        console = Console()
     all_performance_rows = []
     all_channel_contribution_rows = []
     channel_contribution_averages = []
     
     # PHASE 1: Fit and save models (if needed) with memory isolation
     if not args.plots_only:
-        print("\n=== PHASE 1: FITTING MODELS (ISOLATED) ===")
+        console.print()
+        console.rule("[bold cyan]PHASE 1: FITTING MODELS (ISOLATED)[/bold cyan]")
         
         # Fit Meridian
         if "meridian" in args.libraries:
             if not storage.model_exists(dataset_name, "meridian") or args.force_rerun:
-                print("\n--- Meridian ---")
+                console.print("\n[bold yellow]--- Meridian ---[/bold yellow]")
                 meridian_result, runtime, ess = model_fitter.fit_meridian(
                     data_df,
                     channel_columns,
@@ -168,21 +181,22 @@ def run_benchmark_for_dataset(
                     args.draws,
                     args.tune,
                     args.target_accept,
-                    args.seed
+                    args.seed,
+                    console
                 )
                 storage.save_meridian_model(meridian_result, dataset_name, runtime, ess)
                 del meridian_result
                 gc.collect()
-                print("  ✓ Model fitted, saved, and memory cleared")
+                console.print("  [green]✓[/green] Model fitted, saved, and memory cleared")
         
         # Fit PyMC models
         if "pymc" in args.libraries:
             for sampler in args.samplers:
-                if model_fitter.should_skip_sampler(sampler, dataset_name):
+                if model_fitter.should_skip_sampler(sampler, dataset_name, console):
                     continue
                 
                 if not storage.model_exists(dataset_name, "pymc", sampler) or args.force_rerun:
-                    print(f"\n--- PyMC-Marketing - {sampler} ---")
+                    console.print(f"\n[bold yellow]--- PyMC-Marketing - {sampler} ---[/bold yellow]")
                     pymc_result, runtime, ess = model_fitter.fit_pymc(
                         data_df,
                         channel_columns,
@@ -192,20 +206,22 @@ def run_benchmark_for_dataset(
                         args.draws,
                         args.tune,
                         args.target_accept,
-                        args.seed
+                        args.seed,
+                        console
                     )
                     storage.save_pymc_model(pymc_result, dataset_name, sampler, runtime, ess)
                     del pymc_result
                     gc.collect()
-                    print("  ✓ Model fitted, saved, and memory cleared")
+                    console.print("  [green]✓[/green] Model fitted, saved, and memory cleared")
     
     # PHASE 2: Load all models for evaluation
-    print("\n=== PHASE 2: EVALUATING MODELS ===")
+    console.print()
+    console.rule("[bold cyan]PHASE 2: EVALUATING MODELS[/bold cyan]")
     results = {}
     
     # Load and evaluate Meridian
     if "meridian" in args.libraries and storage.model_exists(dataset_name, "meridian"):
-        print("\n--- Evaluating Meridian ---")
+        console.print("\n[bold yellow]--- Evaluating Meridian ---[/bold yellow]")
         meridian_result, runtime, ess = storage.load_meridian_model(dataset_name)
         results["Meridian"] = (meridian_result, runtime, ess)
         
@@ -236,7 +252,7 @@ def run_benchmark_for_dataset(
                 continue
                 
             if storage.model_exists(dataset_name, "pymc", sampler):
-                print(f"\n--- Evaluating PyMC-Marketing - {sampler} ---")
+                console.print(f"\n[bold yellow]--- Evaluating PyMC-Marketing - {sampler} ---[/bold yellow]")
                 pymc_result, runtime, ess = storage.load_pymc_model(dataset_name, sampler)
                 results[f"PyMC-Marketing - {sampler}"] = (pymc_result, runtime, ess)
                 
@@ -266,7 +282,7 @@ def run_benchmark_for_dataset(
     
     # Generate comparison plot if both models exist
     if "Meridian" in results and "PyMC-Marketing - nutpie" in results:
-        print("\n--- Generating Model Comparison Plot ---")
+        console.print("\n[bold yellow]--- Generating Model Comparison Plot ---[/bold yellow]")
         meridian_result, _, _ = results["Meridian"]
         pymc_nutpie_result, _, _ = results["PyMC-Marketing - nutpie"]
         
@@ -282,7 +298,8 @@ def run_benchmark_for_dataset(
 
 def create_summary_tables(
     all_results: Dict[str, Dict[str, Any]],
-    dataset_names: List[str]
+    dataset_names: List[str],
+    console: Optional[Console] = None
 ) -> None:
     """Create and save summary tables.
     
@@ -292,7 +309,11 @@ def create_summary_tables(
         All results keyed by dataset name
     dataset_names : List[str]
         List of dataset names
+    console : Optional[Console]
+        Rich console for output
     """
+    if console is None:
+        console = Console()
     # Runtime summary
     runtime_data = {"Dataset": dataset_names}
     ess_rows = []
@@ -351,8 +372,21 @@ def create_summary_tables(
     runtime_df = pd.DataFrame(runtime_data)
     runtime_df.set_index("Dataset", inplace=True)
     storage.save_summary_dataframe(runtime_df, "runtime_comparison")
-    print("\n=== Runtime Summary ===")
-    print(runtime_df.round(1))
+    
+    # Create Rich table for runtime summary
+    runtime_table = Table(title="Runtime Summary (seconds)", box=box.ROUNDED)
+    runtime_table.add_column("Dataset", style="cyan", no_wrap=True)
+    for col in runtime_df.columns:
+        runtime_table.add_column(col, justify="right")
+    
+    for idx, row in runtime_df.iterrows():
+        runtime_table.add_row(
+            str(idx),
+            *[f"{val:.1f}" if pd.notna(val) else "N/A" for val in row]
+        )
+    
+    console.print()
+    console.print(runtime_table)
     
     # Save ESS summary
     ess_df = pd.DataFrame(ess_rows)
@@ -363,8 +397,22 @@ def create_summary_tables(
         columns="ESS",
         values="value"
     ).round(2)
-    print("\n=== ESS Summary ===")
-    print(ess_pivot)
+    # Create Rich table for ESS summary
+    ess_table = Table(title="ESS Summary", box=box.ROUNDED)
+    ess_table.add_column("Dataset", style="cyan")
+    ess_table.add_column("Sampler", style="yellow")
+    for col in ['min', 'q10', 'q50', 'q90']:
+        ess_table.add_column(col, justify="right")
+    
+    for idx, row in ess_pivot.iterrows():
+        dataset, sampler = idx
+        ess_table.add_row(
+            dataset, sampler,
+            *[f"{row[col]:.0f}" if pd.notna(row[col]) else "N/A" for col in ['min', 'q10', 'q50', 'q90']]
+        )
+    
+    console.print()
+    console.print(ess_table)
     
     # Calculate and save ESS/s (Effective Sample Size per second)
     if ess_rows and runtime_data:
@@ -419,15 +467,51 @@ def create_summary_tables(
             if "q50_per_s" in ess_per_s_pivot.columns:
                 ess_per_s_pivot = ess_per_s_pivot.sort_values("q50_per_s", ascending=False)
             
-            print("\n=== ESS/s (Efficiency) Summary ===")
-            print(ess_per_s_pivot.round(2))
+            # Create Rich table for ESS/s summary
+            ess_per_s_table = Table(title="ESS/s (Efficiency) Summary", box=box.ROUNDED)
+            ess_per_s_table.add_column("Dataset", style="cyan")
+            ess_per_s_table.add_column("Sampler", style="yellow")
+            for col in ess_per_s_pivot.columns:
+                ess_per_s_table.add_column(col, justify="right")
+            
+            for idx, row in ess_per_s_pivot.iterrows():
+                dataset, sampler = idx
+                ess_per_s_table.add_row(
+                    dataset, sampler,
+                    *[f"{row[col]:.2f}" if pd.notna(row[col]) else "N/A" for col in ess_per_s_pivot.columns]
+                )
+            
+            console.print()
+            console.print(ess_per_s_table)
     
     # Save diagnostics summary
     if all_diagnostics_rows:
         diagnostics_df = pd.concat(all_diagnostics_rows, ignore_index=True)
         storage.save_summary_dataframe(diagnostics_df, "diagnostics_summary")
-        print("\n=== Diagnostics Summary ===")
-        print(diagnostics_df.round(2))
+        # Create Rich table for diagnostics summary
+        diag_table = Table(title="Diagnostics Summary", box=box.ROUNDED)
+        for col in diagnostics_df.columns:
+            justify = "right" if col not in ["Dataset", "Library"] else "left"
+            diag_table.add_column(col, justify=justify, style="cyan" if col == "Dataset" else None)
+        
+        for _, row in diagnostics_df.iterrows():
+            values = []
+            for col in diagnostics_df.columns:
+                if pd.isna(row[col]):
+                    values.append("N/A")
+                elif isinstance(row[col], (int, float)):
+                    if col in ["Runtime (s)", "ESS min", "ESS q50", "Size (MB)"]:
+                        values.append(f"{row[col]:.1f}")
+                    elif col == "R-hat max":
+                        values.append(f"{row[col]:.4f}")
+                    else:
+                        values.append(str(int(row[col])))
+                else:
+                    values.append(str(row[col]))
+            diag_table.add_row(*values)
+        
+        console.print()
+        console.print(diag_table)
     
     # Save performance summary
     if all_performance_rows:
@@ -436,17 +520,53 @@ def create_summary_tables(
             dataset_names
         )
         storage.save_summary_dataframe(performance_df, "performance_metrics")
-        print("\n=== Performance Metrics ===")
-        print(performance_df)
+        # Create Rich table for performance metrics
+        perf_table = Table(title="Performance Metrics", box=box.ROUNDED)
+        for col in performance_df.columns:
+            perf_table.add_column(col, justify="left" if col in ["Dataset", "Geo", "Metric"] else "right")
+        
+        for _, row in performance_df.iterrows():
+            values = []
+            for col in performance_df.columns:
+                val = row[col]
+                if pd.isna(val):
+                    values.append("N/A")
+                elif isinstance(val, float):
+                    values.append(f"{val:.4f}")
+                else:
+                    values.append(str(val))
+            perf_table.add_row(*values)
+        
+        console.print()
+        console.print(perf_table)
     
     # Save channel contribution metrics
     if all_channel_contribution_dfs:
         # Combine all per-channel DataFrames
         channel_metrics_df = pd.concat(all_channel_contribution_dfs, ignore_index=True)
         storage.save_summary_dataframe(channel_metrics_df, "channel_contribution_metrics")
-        print("\n=== Channel Contribution Metrics (Per Channel) ===")
-        print(channel_metrics_df.head(10))
-        print(f"... ({len(channel_metrics_df)} total rows)")
+        # Create Rich table for channel contributions (showing sample)
+        channel_table = Table(
+            title=f"Channel Contribution Metrics (showing 10 of {len(channel_metrics_df)} rows)",
+            box=box.ROUNDED
+        )
+        for col in channel_metrics_df.columns:
+            channel_table.add_column(col)
+        
+        for _, row in channel_metrics_df.head(10).iterrows():
+            values = []
+            for col in channel_metrics_df.columns:
+                val = row[col]
+                if pd.isna(val):
+                    values.append("N/A")
+                elif isinstance(val, float):
+                    values.append(f"{val:.4f}")
+                else:
+                    values.append(str(val))
+            channel_table.add_row(*values)
+        
+        console.print()
+        console.print(channel_table)
         
         # Generate channel contribution plots
         visualization.plot_channel_contribution_distributions(channel_metrics_df)
@@ -456,26 +576,48 @@ def create_summary_tables(
     if all_channel_averages:
         channel_avg_df = pd.DataFrame(all_channel_averages)
         storage.save_summary_dataframe(channel_avg_df, "channel_contribution_averages")
-        print("\n=== Channel Contribution Averages ===")
-        print(channel_avg_df.round(4))
+        # Create Rich table for channel contribution averages
+        avg_table = Table(title="Channel Contribution Averages", box=box.ROUNDED)
+        for col in channel_avg_df.columns:
+            avg_table.add_column(col)
+        
+        for _, row in channel_avg_df.iterrows():
+            values = []
+            for col in channel_avg_df.columns:
+                val = row[col]
+                if pd.isna(val):
+                    values.append("N/A")
+                elif isinstance(val, float):
+                    values.append(f"{val:.4f}")
+                else:
+                    values.append(str(val))
+            avg_table.add_row(*values)
+        
+        console.print()
+        console.print(avg_table)
     
 
 
 def main() -> None:
     """Main entry point for benchmarking script."""
     args = parse_arguments()
+    console = Console()
     
-    print("=" * 60)
-    print("MMM BENCHMARKING COMPARISON")
-    print("=" * 60)
-    print(f"Datasets: {', '.join(args.datasets)}")
-    print(f"Libraries: {', '.join(args.libraries)}")
+    # Create welcome panel
+    welcome_text = Text("MMM BENCHMARKING COMPARISON", justify="center", style="bold cyan")
+    config_text = f"""[bold]Configuration:[/bold]
+• Datasets: {', '.join(args.datasets)}
+• Libraries: {', '.join(args.libraries)}"""
+    
     if "pymc" in args.libraries:
-        print(f"Samplers: {', '.join(args.samplers)}")
-    print(f"Chains: {args.chains}, Draws: {args.draws}, Tune: {args.tune}")
-    print(f"Target Accept: {args.target_accept}, Seed: {args.seed}")
-    print(f"Force Rerun: {args.force_rerun}")
-    print("=" * 60)
+        config_text += f"\n• Samplers: {', '.join(args.samplers)}"
+    
+    config_text += f"""\n• Chains: {args.chains}, Draws: {args.draws}, Tune: {args.tune}
+• Target Accept: {args.target_accept}, Seed: {args.seed}
+• Force Rerun: {args.force_rerun}"""
+    
+    console.print(Panel.fit(welcome_text, border_style="cyan"))
+    console.print(Panel(config_text, title="Settings", border_style="blue"))
     
     # Set up environment
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
@@ -484,7 +626,7 @@ def main() -> None:
     visualization.setup_plot_style()
     
     # Load datasets
-    prepared_datasets = data_loader.load_multiple_datasets(args.datasets, args.seed)
+    prepared_datasets = data_loader.load_multiple_datasets(args.datasets, args.seed, console)
     
     # Run benchmarks
     all_results = {}
@@ -492,9 +634,9 @@ def main() -> None:
     for i, (data_df, channel_columns, control_columns, truth_df) in enumerate(prepared_datasets):
         dataset_name = args.datasets[i]
         
-        print(f"\n{'=' * 60}")
-        print(f"BENCHMARKING: {dataset_name}")
-        print(f"{'=' * 60}")
+        console.print()
+        console.print(Panel(f"[bold cyan]BENCHMARKING: {dataset_name}[/bold cyan]", 
+                           expand=False, border_style="yellow"))
         
         results = run_benchmark_for_dataset(
             dataset_name,
@@ -502,25 +644,26 @@ def main() -> None:
             channel_columns,
             control_columns,
             truth_df,
-            args
+            args,
+            console
         )
         
         all_results[dataset_name] = results
         
         # Clear memory between datasets
         gc.collect()
-        print("  ✓ Memory cleared between datasets")
+        console.print("  [green]✓[/green] Memory cleared between datasets")
     
     # Create summary tables and plots
     if not args.plots_only:
-        print(f"\n{'=' * 60}")
-        print("CREATING SUMMARIES")
-        print(f"{'=' * 60}")
-        create_summary_tables(all_results, args.datasets)
+        console.print()
+        console.print(Panel("[bold yellow]CREATING SUMMARIES[/bold yellow]", 
+                           expand=False, border_style="yellow"))
+        create_summary_tables(all_results, args.datasets, console)
     
-    print(f"\n{'=' * 60}")
-    print("BENCHMARKING COMPLETE")
-    print(f"{'=' * 60}")
+    console.print()
+    console.print(Panel("[bold green]BENCHMARKING COMPLETE[/bold green]", 
+                       expand=False, border_style="green"))
 
 
 if __name__ == "__main__":

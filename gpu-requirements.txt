@@ -22,3 +22,4 @@ pymc==5.24
 pymc-marketing>=0.15.1,<0.16
 nutpie
 great_tables
+rich>=13.0.0

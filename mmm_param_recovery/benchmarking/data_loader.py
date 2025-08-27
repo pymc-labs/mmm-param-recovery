@@ -1,13 +1,17 @@
 """Data loading and generation functions for benchmarking."""
 
 import re
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional
 import pandas as pd
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich import box
 from mmm_param_recovery.data_generator import generate_mmm_dataset, get_preset_config
 from . import storage
 
 
-def load_or_generate_dataset(dataset_name: str, seed: int) -> Dict[str, Any]:
+def load_or_generate_dataset(dataset_name: str, seed: int, console: Optional[Console] = None) -> Dict[str, Any]:
     """Load dataset from cache or generate if needed.
     
     Parameters
@@ -16,19 +20,23 @@ def load_or_generate_dataset(dataset_name: str, seed: int) -> Dict[str, Any]:
         Name of the dataset preset
     seed : int
         Random seed for generation
+    console : Optional[Console]
+        Rich console for output
         
     Returns
     -------
     Dict[str, Any]
         Dataset result containing 'data' DataFrame and 'ground_truth' dict
     """
+    if console is None:
+        console = Console()
     cached_data = storage.load_dataset(dataset_name)
     
     if cached_data is not None:
-        print(f"Loading existing data for {dataset_name}")
+        console.print(f"[cyan]Loading existing data for {dataset_name}[/cyan]")
         return cached_data
     
-    print(f"Generating new data for {dataset_name}")
+    console.print(f"[yellow]Generating new data for {dataset_name}[/yellow]")
     config = get_preset_config(dataset_name.split("-", 1)[0])
     config.seed = seed
     dataset_result = generate_mmm_dataset(config)
@@ -38,7 +46,8 @@ def load_or_generate_dataset(dataset_name: str, seed: int) -> Dict[str, Any]:
 
 
 def prepare_dataset_for_modeling(
-    dataset_result: Dict[str, Any]
+    dataset_result: Dict[str, Any],
+    console: Optional[Console] = None
 ) -> Tuple[pd.DataFrame, List[str], List[str], pd.DataFrame]:
     """Prepare dataset for model building.
     
@@ -46,6 +55,8 @@ def prepare_dataset_for_modeling(
     ----------
     dataset_result : Dict
         Result from generate_mmm_dataset
+    console : Optional[Console]
+        Rich console for output
         
     Returns
     -------
@@ -55,6 +66,8 @@ def prepare_dataset_for_modeling(
         - List of control column names  
         - Ground truth transformed spend dataframe
     """
+    if console is None:
+        console = Console()
     data_df = dataset_result['data'].rename(columns={"date": "time"})
     data_df["population"] = 1
     
@@ -66,17 +79,26 @@ def prepare_dataset_for_modeling(
         columns={"date": "time"}
     )
     
-    print(f"Dataset shape: {data_df.shape}")
-    print(f"Regions: {data_df['geo'].unique()}")
-    print(f"Date range: {data_df['time'].min()} to {data_df['time'].max()}")
-    print(f"Channels: {len(channel_columns)}, Controls: {len(control_columns)}")
+    # Create a nice info table for dataset details
+    info_table = Table(show_header=False, box=box.SIMPLE)
+    info_table.add_column("Property", style="cyan")
+    info_table.add_column("Value")
+    
+    info_table.add_row("Dataset shape", f"{data_df.shape[0]} rows × {data_df.shape[1]} columns")
+    info_table.add_row("Regions", str(list(data_df['geo'].unique())))
+    info_table.add_row("Date range", f"{data_df['time'].min()} to {data_df['time'].max()}")
+    info_table.add_row("Channels", f"{len(channel_columns)} channels: {', '.join(channel_columns[:3])}..." if len(channel_columns) > 3 else f"{len(channel_columns)} channels")
+    info_table.add_row("Controls", f"{len(control_columns)} controls")
+    
+    console.print(info_table)
     
     return data_df, channel_columns, control_columns, truth_df
 
 
 def load_multiple_datasets(
     dataset_names: List[str],
-    seed: int
+    seed: int,
+    console: Optional[Console] = None
 ) -> List[Tuple[pd.DataFrame, List[str], List[str], pd.DataFrame]]:
     """Load and prepare multiple datasets.
     
@@ -86,19 +108,23 @@ def load_multiple_datasets(
         Names of dataset presets to load
     seed : int
         Random seed for generation
+    console : Optional[Console]
+        Rich console for output
         
     Returns
     -------
     List[Tuple[pd.DataFrame, List[str], List[str], pd.DataFrame]]
         List of prepared datasets with their metadata
     """
+    if console is None:
+        console = Console()
     prepared_datasets = []
     
     for name in dataset_names:
-        print(f"\n=== Loading dataset: {name} ===")
-        dataset_result = load_or_generate_dataset(name, seed)
-        prepared = prepare_dataset_for_modeling(dataset_result)
+        console.print()
+        console.print(Panel(f"[bold cyan]Loading dataset: {name}[/bold cyan]", expand=False))
+        dataset_result = load_or_generate_dataset(name, seed, console)
+        prepared = prepare_dataset_for_modeling(dataset_result, console)
         prepared_datasets.append(prepared)
-        print("=" * 40)
     
     return prepared_datasets
