@@ -6,6 +6,7 @@ import gc
 import os
 import sys
 from typing import List, Dict, Any, Optional
+import numpy as np
 import pandas as pd
 import warnings
 from rich.console import Console
@@ -26,7 +27,8 @@ from mmm_param_recovery.benchmarking import (
     diagnostics,
     evaluation,
     visualization,
-    storage
+    storage,
+    bayesian_evaluation
 )
 
 
@@ -118,6 +120,12 @@ def parse_arguments() -> argparse.Namespace:
         "--plots-only",
         action="store_true",
         help="Generate only plots from existing models"
+    )
+    
+    parser.add_argument(
+        "--bayesian-metrics",
+        action="store_true",
+        help="Use Bayesian metric calculation (compute metrics on posterior samples)"
     )
     
     parser.set_defaults(force_rerun=False)
@@ -280,6 +288,67 @@ def run_benchmark_for_dataset(
     results["channel_contributions"] = all_channel_contribution_rows
     results["channel_averages"] = channel_contribution_averages
     
+    # PHASE 3: Bayesian Evaluation (if requested)
+    if args.bayesian_metrics:
+        print("\n=== PHASE 3: BAYESIAN EVALUATION ===")
+        bayesian_results = {}
+        
+        # Evaluate Meridian with Bayesian metrics
+        if "Meridian" in results:
+            print("\n--- Bayesian Evaluation: Meridian ---")
+            meridian_model, _, _ = results["Meridian"]
+            
+            # Revenue metrics
+            revenue_metrics = bayesian_evaluation.evaluate_revenue_bayesian(
+                meridian_model, data_df, 'meridian'
+            )
+            
+            # Channel contribution metrics
+            contrib_detailed, contrib_aggregated = bayesian_evaluation.evaluate_contributions_bayesian(
+                meridian_model, truth_df, channel_columns, 'meridian'
+            )
+            
+            bayesian_results["Meridian"] = {
+                'revenue': revenue_metrics,
+                'contributions_detailed': contrib_detailed,
+                'contributions_aggregated': contrib_aggregated
+            }
+            
+            # Print summary
+            for geo, metrics in revenue_metrics.items():
+                print(f"  {geo} - R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(metrics['R²'], 3)}")
+            print(f"  Channel Contributions - Avg R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(contrib_aggregated['R²'], 3)}")
+        
+        # Evaluate PyMC models with Bayesian metrics
+        for sampler in args.samplers:
+            model_key = f"PyMC-Marketing - {sampler}"
+            if model_key in results:
+                print(f"\n--- Bayesian Evaluation: {model_key} ---")
+                pymc_model, _, _ = results[model_key]
+                
+                # Revenue metrics
+                revenue_metrics = bayesian_evaluation.evaluate_revenue_bayesian(
+                    pymc_model, data_df, 'pymc'
+                )
+                
+                # Channel contribution metrics
+                contrib_detailed, contrib_aggregated = bayesian_evaluation.evaluate_contributions_bayesian(
+                    pymc_model, truth_df, channel_columns, 'pymc'
+                )
+                
+                bayesian_results[model_key] = {
+                    'revenue': revenue_metrics,
+                    'contributions_detailed': contrib_detailed,
+                    'contributions_aggregated': contrib_aggregated
+                }
+                
+                # Print summary
+                for geo, metrics in revenue_metrics.items():
+                    print(f"  {geo} - R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(metrics['R²'], 3)}")
+                print(f"  Channel Contributions - Avg R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(contrib_aggregated['R²'], 3)}")
+        
+        results["bayesian_metrics"] = bayesian_results
+    
     # Generate comparison plot if both models exist
     if "Meridian" in results and "PyMC-Marketing - nutpie" in results:
         console.print("\n[bold yellow]--- Generating Model Comparison Plot ---[/bold yellow]")
@@ -336,6 +405,9 @@ def create_summary_tables(
             elif key == "channel_averages":
                 all_channel_averages.extend(value)
                 continue
+            elif key == "bayesian_metrics":
+                # Skip bayesian_metrics as it's handled separately
+                continue
             
             model, runtime, ess = value
             
@@ -360,7 +432,7 @@ def create_summary_tables(
         # Create diagnostics summary - filter out non-model entries
         model_results = {
             k: v for k, v in dataset_results.items() 
-            if k not in ["performance", "channel_contributions", "channel_averages"]
+            if k not in ["performance", "channel_contributions", "channel_averages", "bayesian_metrics"]
         }
         diag_df = diagnostics.create_diagnostics_summary(
             model_results,
@@ -596,6 +668,146 @@ def create_summary_tables(
         console.print()
         console.print(avg_table)
     
+    # Save Bayesian metrics summary (if available)
+    if any('bayesian_metrics' in result for result in all_results.values()):
+        print("\n=== Bayesian Metrics Summary ===")
+        
+        # Collect all Bayesian results
+        bayesian_revenue_results = {}
+        bayesian_contrib_results = {}
+        
+        for dataset_name, dataset_results in all_results.items():
+            if 'bayesian_metrics' in dataset_results:
+                bayesian_revenue_results[dataset_name] = {}
+                bayesian_contrib_results[dataset_name] = {}
+                
+                for model_name, model_metrics in dataset_results['bayesian_metrics'].items():
+                    # Store revenue metrics (averaged across geos)
+                    revenue_metrics = model_metrics['revenue']
+                    avg_revenue_metrics = {}
+                    
+                    for metric_name in ['R²', 'MAPE (%)', 'SRMSE', 'Durbin-Watson', 'Bias']:
+                        # Collect metric values across geos
+                        geo_values = []
+                        for geo_metrics in revenue_metrics.values():
+                            if metric_name in geo_metrics:
+                                geo_values.append(geo_metrics[metric_name]['mean'])
+                        
+                        if geo_values:
+                            # Use first geo's full stats as template
+                            first_geo = list(revenue_metrics.keys())[0]
+                            avg_revenue_metrics[metric_name] = dict(revenue_metrics[first_geo][metric_name])
+                            avg_revenue_metrics[metric_name]['mean'] = np.nanmean(geo_values)
+                    
+                    # Also average the posterior mean MAPE
+                    mape_pm_values = []
+                    for geo_metrics in revenue_metrics.values():
+                        if 'MAPE_posterior_mean (%)' in geo_metrics:
+                            mape_pm_values.append(geo_metrics['MAPE_posterior_mean (%)'])
+                    if mape_pm_values:
+                        avg_revenue_metrics['MAPE_posterior_mean (%)'] = np.nanmean(mape_pm_values)
+                    
+                    bayesian_revenue_results[dataset_name][model_name] = avg_revenue_metrics
+                    
+                    # Store aggregated contribution metrics
+                    bayesian_contrib_results[dataset_name][model_name] = model_metrics['contributions_aggregated']
+        
+        # Create revenue prediction table
+        if bayesian_revenue_results:
+            revenue_table = Table(title="Bayesian Revenue Prediction Metrics", box=box.ROUNDED)
+            revenue_table.add_column("Dataset", style="cyan")
+            revenue_table.add_column("Model", style="yellow")
+            revenue_table.add_column("R² (mean ± std) [90% CI]", justify="right")
+            revenue_table.add_column("MAPE (%) Bayesian", justify="right")  # Proper Bayesian with uncertainty
+            revenue_table.add_column("MAPE (%) Posterior Mean", justify="right")  # Traditional-style for comparison
+            revenue_table.add_column("Durbin-Watson (mean ± std) [90% CI]", justify="right")
+            
+            for dataset_name, models in bayesian_revenue_results.items():
+                for model_name, metrics in models.items():
+                    r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
+                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
+                    )
+                    # Show both MAPE calculations
+                    mape_bayesian_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
+                        metrics.get('MAPE (%)', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 1
+                    )
+                    mape_posterior_mean = metrics.get('MAPE_posterior_mean (%)', np.nan)
+                    mape_pm_str = f"{mape_posterior_mean:.1f}" if not np.isnan(mape_posterior_mean) else "N/A"
+                    dw_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
+                        metrics.get('Durbin-Watson', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
+                    )
+                    revenue_table.add_row(dataset_name, model_name, r2_str, mape_bayesian_str, mape_pm_str, dw_str)
+            
+            console.print()
+            console.print(revenue_table)
+            
+            # Save to CSV
+            revenue_df = pd.DataFrame([
+                {
+                    'Dataset': dataset,
+                    'Model': model,
+                    'R2_mean': metrics.get('R²', {}).get('mean', np.nan),
+                    'R2_std': metrics.get('R²', {}).get('std', np.nan),
+                    'R2_q5': metrics.get('R²', {}).get('q5', np.nan),
+                    'R2_q95': metrics.get('R²', {}).get('q95', np.nan),
+                    'MAPE_bayesian_mean': metrics.get('MAPE (%)', {}).get('mean', np.nan),
+                    'MAPE_bayesian_std': metrics.get('MAPE (%)', {}).get('std', np.nan),
+                    'MAPE_bayesian_q5': metrics.get('MAPE (%)', {}).get('q5', np.nan),
+                    'MAPE_bayesian_q95': metrics.get('MAPE (%)', {}).get('q95', np.nan),
+                    'MAPE_posterior_mean': metrics.get('MAPE_posterior_mean (%)', np.nan),
+                    'DW_mean': metrics.get('Durbin-Watson', {}).get('mean', np.nan),
+                    'DW_std': metrics.get('Durbin-Watson', {}).get('std', np.nan),
+                    'DW_q5': metrics.get('Durbin-Watson', {}).get('q5', np.nan),
+                    'DW_q95': metrics.get('Durbin-Watson', {}).get('q95', np.nan),
+                    'Bias_mean': metrics.get('Bias', {}).get('mean', np.nan),
+                    'Bias_std': metrics.get('Bias', {}).get('std', np.nan),
+                    'SRMSE_mean': metrics.get('SRMSE', {}).get('mean', np.nan),
+                    'SRMSE_std': metrics.get('SRMSE', {}).get('std', np.nan)
+                }
+                for dataset, models in bayesian_revenue_results.items()
+                for model, metrics in models.items()
+            ])
+            storage.save_summary_dataframe(revenue_df, "bayesian_revenue_metrics")
+        
+        # Create channel contribution recovery table
+        if bayesian_contrib_results:
+            contrib_table = Table(title="Bayesian Channel Contribution Recovery", box=box.ROUNDED)
+            contrib_table.add_column("Dataset", style="cyan")
+            contrib_table.add_column("Model", style="yellow")
+            contrib_table.add_column("Avg R² (mean ± std) [90% CI]", justify="right")
+            contrib_table.add_column("Avg SRMSE (mean ± std) [90% CI]", justify="right")
+            
+            for dataset_name, models in bayesian_contrib_results.items():
+                for model_name, metrics in models.items():
+                    r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
+                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
+                    )
+                    srmse_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
+                        metrics.get('SRMSE', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
+                    )
+                    contrib_table.add_row(dataset_name, model_name, r2_str, srmse_str)
+            
+            console.print()
+            console.print(contrib_table)
+            
+            # Save to CSV
+            contrib_df = pd.DataFrame([
+                {
+                    'Dataset': dataset,
+                    'Model': model,
+                    'R2_mean': metrics.get('R²', {}).get('mean', np.nan),
+                    'R2_std': metrics.get('R²', {}).get('std', np.nan),
+                    'R2_q5': metrics.get('R²', {}).get('q5', np.nan),
+                    'R2_q95': metrics.get('R²', {}).get('q95', np.nan),
+                    'SRMSE_mean': metrics.get('SRMSE', {}).get('mean', np.nan),
+                    'SRMSE_std': metrics.get('SRMSE', {}).get('std', np.nan),
+                    'SRMSE_q5': metrics.get('SRMSE', {}).get('q5', np.nan),
+                    'SRMSE_q95': metrics.get('SRMSE', {}).get('q95', np.nan)
+                }
+                for dataset, models in bayesian_contrib_results.items()
+                for model, metrics in models.items()
+            ])
+            storage.save_summary_dataframe(contrib_df, "bayesian_contribution_metrics")
 
 
 def main() -> None:
