@@ -644,12 +644,12 @@ def create_summary_tables(
         visualization.plot_channel_contribution_distributions(channel_metrics_df)
         visualization.plot_channel_metrics_comparison(channel_metrics_df)
         
-    # Save channel contribution averages
+    # Save channel contribution recovery error metrics
     if all_channel_averages:
         channel_avg_df = pd.DataFrame(all_channel_averages)
         storage.save_summary_dataframe(channel_avg_df, "channel_contribution_averages")
-        # Create Rich table for channel contribution averages
-        avg_table = Table(title="Channel Contribution Averages", box=box.ROUNDED)
+        # Create Rich table for channel contribution recovery
+        avg_table = Table(title="Channel Contribution Recovery", box=box.ROUNDED)
         for col in channel_avg_df.columns:
             avg_table.add_column(col)
         
@@ -774,18 +774,26 @@ def create_summary_tables(
             contrib_table = Table(title="Bayesian Channel Contribution Recovery", box=box.ROUNDED)
             contrib_table.add_column("Dataset", style="cyan")
             contrib_table.add_column("Model", style="yellow")
-            contrib_table.add_column("Avg R² (mean ± std) [90% CI]", justify="right")
+            contrib_table.add_column("Avg Bias (mean ± std) [90% CI]", justify="right")
             contrib_table.add_column("Avg SRMSE (mean ± std) [90% CI]", justify="right")
+            contrib_table.add_column("Avg R² (mean ± std) [90% CI]", justify="right")
+            contrib_table.add_column("Avg MAPE (%) (mean ± std) [90% CI]", justify="right")
             
             for dataset_name, models in bayesian_contrib_results.items():
                 for model_name, metrics in models.items():
-                    r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
+                    bias_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
+                        metrics.get('Bias', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 4
                     )
                     srmse_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
                         metrics.get('SRMSE', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
                     )
-                    contrib_table.add_row(dataset_name, model_name, r2_str, srmse_str)
+                    r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
+                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
+                    )
+                    mape_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
+                        metrics.get('MAPE (%)', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 1
+                    )
+                    contrib_table.add_row(dataset_name, model_name, bias_str, srmse_str, r2_str, mape_str)
             
             console.print()
             console.print(contrib_table)
@@ -795,14 +803,22 @@ def create_summary_tables(
                 {
                     'Dataset': dataset,
                     'Model': model,
+                    'Bias_mean': metrics.get('Bias', {}).get('mean', np.nan),
+                    'Bias_std': metrics.get('Bias', {}).get('std', np.nan),
+                    'Bias_q5': metrics.get('Bias', {}).get('q5', np.nan),
+                    'Bias_q95': metrics.get('Bias', {}).get('q95', np.nan),
+                    'SRMSE_mean': metrics.get('SRMSE', {}).get('mean', np.nan),
+                    'SRMSE_std': metrics.get('SRMSE', {}).get('std', np.nan),
+                    'SRMSE_q5': metrics.get('SRMSE', {}).get('q5', np.nan),
+                    'SRMSE_q95': metrics.get('SRMSE', {}).get('q95', np.nan),
                     'R2_mean': metrics.get('R²', {}).get('mean', np.nan),
                     'R2_std': metrics.get('R²', {}).get('std', np.nan),
                     'R2_q5': metrics.get('R²', {}).get('q5', np.nan),
                     'R2_q95': metrics.get('R²', {}).get('q95', np.nan),
-                    'SRMSE_mean': metrics.get('SRMSE', {}).get('mean', np.nan),
-                    'SRMSE_std': metrics.get('SRMSE', {}).get('std', np.nan),
-                    'SRMSE_q5': metrics.get('SRMSE', {}).get('q5', np.nan),
-                    'SRMSE_q95': metrics.get('SRMSE', {}).get('q95', np.nan)
+                    'MAPE_mean': metrics.get('MAPE (%)', {}).get('mean', np.nan),
+                    'MAPE_std': metrics.get('MAPE (%)', {}).get('std', np.nan),
+                    'MAPE_q5': metrics.get('MAPE (%)', {}).get('q5', np.nan),
+                    'MAPE_q95': metrics.get('MAPE (%)', {}).get('q95', np.nan)
                 }
                 for dataset, models in bayesian_contrib_results.items()
                 for model, metrics in models.items()
