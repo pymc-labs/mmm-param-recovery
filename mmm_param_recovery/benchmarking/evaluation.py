@@ -479,17 +479,17 @@ def evaluate_channel_contributions(
     # Calculate averages across all channel-region combinations
     if len(channel_df) > 0:
         avg_metrics = {
-            "avg_bias": channel_df["Bias"].mean(),
-            "avg_srmse": channel_df["SRMSE"].mean(),
-            "avg_r2": channel_df["R²"].mean(),
-            "avg_mape": channel_df["MAPE (%)"].mean()
+            "Bias": channel_df["Bias"].mean(),
+            "SRMSE": channel_df["SRMSE"].mean(),
+            "R²": channel_df["R²"].mean(),
+            "MAPE (%)": channel_df["MAPE (%)"].mean()
         }
     else:
         avg_metrics = {
-            "avg_bias": np.nan,
-            "avg_srmse": np.nan,
-            "avg_r2": np.nan,
-            "avg_mape": np.nan
+            "Bias": np.nan,
+            "SRMSE": np.nan,
+            "R²": np.nan,
+            "MAPE (%)": np.nan
         }
     
     return channel_df, avg_metrics

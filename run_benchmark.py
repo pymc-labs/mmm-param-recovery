@@ -290,12 +290,13 @@ def run_benchmark_for_dataset(
     
     # PHASE 3: Bayesian Evaluation (if requested)
     if args.bayesian_metrics:
-        print("\n=== PHASE 3: BAYESIAN EVALUATION ===")
+        console.print()
+        console.rule("[bold cyan]PHASE 3: BAYESIAN EVALUATION[/bold cyan]")
         bayesian_results = {}
         
         # Evaluate Meridian with Bayesian metrics
         if "Meridian" in results:
-            print("\n--- Bayesian Evaluation: Meridian ---")
+            console.print("\n[bold yellow]--- Bayesian Evaluation: Meridian ---[/bold yellow]")
             meridian_model, _, _ = results["Meridian"]
             
             # Revenue metrics
@@ -316,14 +317,14 @@ def run_benchmark_for_dataset(
             
             # Print summary
             for geo, metrics in revenue_metrics.items():
-                print(f"  {geo} - R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(metrics['R²'], 3)}")
-            print(f"  Channel Contributions - Avg R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(contrib_aggregated['R²'], 3)}")
+                console.print(f"  {geo} - R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(metrics['R²'], 2)}")
+            console.print(f"  Channel Contributions - Avg R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(contrib_aggregated['R²'], 2)}")
         
         # Evaluate PyMC models with Bayesian metrics
         for sampler in args.samplers:
             model_key = f"PyMC-Marketing - {sampler}"
             if model_key in results:
-                print(f"\n--- Bayesian Evaluation: {model_key} ---")
+                console.print(f"\n[bold yellow]--- Bayesian Evaluation: {model_key} ---[/bold yellow]")
                 pymc_model, _, _ = results[model_key]
                 
                 # Revenue metrics
@@ -440,6 +441,10 @@ def create_summary_tables(
         )
         all_diagnostics_rows.append(diag_df)
     
+    # SAMPLING PROCESS SUMMARY SECTION
+    console.print()
+    console.rule("[bold cyan]SAMPLING PROCESS SUMMARY[/bold cyan]")
+    
     # Save runtime summary
     runtime_df = pd.DataFrame(runtime_data)
     runtime_df.set_index("Dataset", inplace=True)
@@ -449,7 +454,8 @@ def create_summary_tables(
     runtime_table = Table(title="Runtime Summary (seconds)", box=box.ROUNDED)
     runtime_table.add_column("Dataset", style="cyan", no_wrap=True)
     for col in runtime_df.columns:
-        runtime_table.add_column(col, justify="right")
+        # Model/sampler columns get yellow styling
+        runtime_table.add_column(col, justify="right", style="yellow")
     
     for idx, row in runtime_df.iterrows():
         runtime_table.add_row(
@@ -564,7 +570,7 @@ def create_summary_tables(
         diag_table = Table(title="Diagnostics Summary", box=box.ROUNDED)
         for col in diagnostics_df.columns:
             justify = "right" if col not in ["Dataset", "Library"] else "left"
-            diag_table.add_column(col, justify=justify, style="cyan" if col == "Dataset" else None)
+            diag_table.add_column(col, justify=justify, style="cyan" if col == "Dataset" else "yellow" if col == "Library" else None)
         
         for _, row in diagnostics_df.iterrows():
             values = []
@@ -575,7 +581,7 @@ def create_summary_tables(
                     if col in ["Runtime (s)", "ESS min", "ESS q50", "Size (MB)"]:
                         values.append(f"{row[col]:.1f}")
                     elif col == "R-hat max":
-                        values.append(f"{row[col]:.4f}")
+                        values.append(f"{row[col]:.2f}")
                     else:
                         values.append(str(int(row[col])))
                 else:
@@ -585,17 +591,28 @@ def create_summary_tables(
         console.print()
         console.print(diag_table)
     
-    # Save performance summary
+    # METRICS SUMMARY SECTION
+    console.print()
+    console.rule("[bold cyan]METRICS SUMMARY[/bold cyan]")
+    
+    # Save in-sample fit error summary
     if all_performance_rows:
         performance_df = evaluation.create_performance_summary(
             all_performance_rows,
             dataset_names
         )
-        storage.save_summary_dataframe(performance_df, "performance_metrics")
-        # Create Rich table for performance metrics
-        perf_table = Table(title="Performance Metrics", box=box.ROUNDED)
+        storage.save_summary_dataframe(performance_df, "insample_fit_metrics")
+        # Create Rich table for in-sample fit error metrics
+        perf_table = Table(title="In-sample Fit Error Metrics", box=box.ROUNDED)
         for col in performance_df.columns:
-            perf_table.add_column(col, justify="left" if col in ["Dataset", "Geo", "Metric"] else "right")
+            if col == "Dataset":
+                perf_table.add_column(col, style="cyan")
+            elif col == "Model":
+                perf_table.add_column(col, style="yellow")
+            elif col in ["Geo", "Metric"]:
+                perf_table.add_column(col, justify="left")
+            else:
+                perf_table.add_column(col, justify="right")
         
         for _, row in performance_df.iterrows():
             values = []
@@ -604,7 +621,7 @@ def create_summary_tables(
                 if pd.isna(val):
                     values.append("N/A")
                 elif isinstance(val, float):
-                    values.append(f"{val:.4f}")
+                    values.append(f"{val:.2f}")
                 else:
                     values.append(str(val))
             perf_table.add_row(*values)
@@ -623,7 +640,16 @@ def create_summary_tables(
             box=box.ROUNDED
         )
         for col in channel_metrics_df.columns:
-            channel_table.add_column(col)
+            if col == "Dataset":
+                channel_table.add_column(col, style="cyan")
+            elif col == "Model":
+                channel_table.add_column(col, style="yellow")
+            elif col == "Channel":
+                channel_table.add_column(col, style="green")
+            elif col == "Region":
+                channel_table.add_column(col, style="magenta")
+            else:
+                channel_table.add_column(col, justify="right")
         
         for _, row in channel_metrics_df.head(10).iterrows():
             values = []
@@ -632,7 +658,7 @@ def create_summary_tables(
                 if pd.isna(val):
                     values.append("N/A")
                 elif isinstance(val, float):
-                    values.append(f"{val:.4f}")
+                    values.append(f"{val:.2f}")
                 else:
                     values.append(str(val))
             channel_table.add_row(*values)
@@ -651,7 +677,12 @@ def create_summary_tables(
         # Create Rich table for channel contribution recovery
         avg_table = Table(title="Channel Contribution Recovery", box=box.ROUNDED)
         for col in channel_avg_df.columns:
-            avg_table.add_column(col)
+            if col == "Dataset":
+                avg_table.add_column(col, style="cyan")
+            elif col == "Model":
+                avg_table.add_column(col, style="yellow")
+            else:
+                avg_table.add_column(col, justify="right")
         
         for _, row in channel_avg_df.iterrows():
             values = []
@@ -660,7 +691,7 @@ def create_summary_tables(
                 if pd.isna(val):
                     values.append("N/A")
                 elif isinstance(val, float):
-                    values.append(f"{val:.4f}")
+                    values.append(f"{val:.2f}")
                 else:
                     values.append(str(val))
             avg_table.add_row(*values)
@@ -670,7 +701,8 @@ def create_summary_tables(
     
     # Save Bayesian metrics summary (if available)
     if any('bayesian_metrics' in result for result in all_results.values()):
-        print("\n=== Bayesian Metrics Summary ===")
+        console.print()
+        console.rule("[bold cyan]BAYESIAN METRICS SUMMARY[/bold cyan]")
         
         # Collect all Bayesian results
         bayesian_revenue_results = {}
@@ -712,9 +744,9 @@ def create_summary_tables(
                     # Store aggregated contribution metrics
                     bayesian_contrib_results[dataset_name][model_name] = model_metrics['contributions_aggregated']
         
-        # Create revenue prediction table
+        # Create Bayesian in-sample fit error table
         if bayesian_revenue_results:
-            revenue_table = Table(title="Bayesian Revenue Prediction Metrics", box=box.ROUNDED)
+            revenue_table = Table(title="Bayesian In-sample Fit Error Metrics", box=box.ROUNDED)
             revenue_table.add_column("Dataset", style="cyan")
             revenue_table.add_column("Model", style="yellow")
             revenue_table.add_column("R² (mean ± std) [90% CI]", justify="right")
@@ -725,7 +757,7 @@ def create_summary_tables(
             for dataset_name, models in bayesian_revenue_results.items():
                 for model_name, metrics in models.items():
                     r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
+                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
                     )
                     # Show both MAPE calculations
                     mape_bayesian_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
@@ -734,7 +766,7 @@ def create_summary_tables(
                     mape_posterior_mean = metrics.get('MAPE_posterior_mean (%)', np.nan)
                     mape_pm_str = f"{mape_posterior_mean:.1f}" if not np.isnan(mape_posterior_mean) else "N/A"
                     dw_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('Durbin-Watson', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
+                        metrics.get('Durbin-Watson', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
                     )
                     revenue_table.add_row(dataset_name, model_name, r2_str, mape_bayesian_str, mape_pm_str, dw_str)
             
@@ -767,7 +799,7 @@ def create_summary_tables(
                 for dataset, models in bayesian_revenue_results.items()
                 for model, metrics in models.items()
             ])
-            storage.save_summary_dataframe(revenue_df, "bayesian_revenue_metrics")
+            storage.save_summary_dataframe(revenue_df, "bayesian_insample_fit_metrics")
         
         # Create channel contribution recovery table
         if bayesian_contrib_results:
@@ -782,13 +814,13 @@ def create_summary_tables(
             for dataset_name, models in bayesian_contrib_results.items():
                 for model_name, metrics in models.items():
                     bias_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('Bias', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 4
+                        metrics.get('Bias', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
                     )
                     srmse_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('SRMSE', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
+                        metrics.get('SRMSE', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
                     )
                     r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 3
+                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
                     )
                     mape_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
                         metrics.get('MAPE (%)', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 1
