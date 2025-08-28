@@ -84,7 +84,11 @@ def prepare_dataset_for_modeling(
     info_table.add_column("Property", style="cyan")
     info_table.add_column("Value")
     
+    # Calculate effective modeling columns (time, geo, channels, controls, target)
+    effective_columns = 2 + len(channel_columns) + len(control_columns) + 1  # 2 for time+geo, 1 for target
+    
     info_table.add_row("Dataset shape", f"{data_df.shape[0]} rows × {data_df.shape[1]} columns")
+    info_table.add_row("Effective modeling size", f"{data_df.shape[0]} rows × {effective_columns} columns (time, geo, {len(channel_columns)} channels, {len(control_columns)} controls, target)")
     info_table.add_row("Regions", str(list(data_df['geo'].unique())))
     info_table.add_row("Date range", f"{data_df['time'].min()} to {data_df['time'].max()}")
     info_table.add_row("Channels", f"{len(channel_columns)} channels: {', '.join(channel_columns[:3])}..." if len(channel_columns) > 3 else f"{len(channel_columns)} channels")
