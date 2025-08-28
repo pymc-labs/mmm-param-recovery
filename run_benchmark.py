@@ -460,6 +460,16 @@ def create_summary_tables(
         )
         all_diagnostics_rows.append(diag_df)
     
+    # Fix for unequal column lengths in runtime_data
+    # This happens when different datasets have different models fitted
+    # (e.g., large datasets skip memory-intensive JAX samplers like blackjax/numpyro)
+    # We need to ensure all columns have the same length by padding with NaN
+    for key in runtime_data:
+        if key != "Dataset":
+            # Pad with NaN values if this model wasn't run for all datasets
+            while len(runtime_data[key]) < len(dataset_names):
+                runtime_data[key].append(np.nan)
+    
     # SAMPLING PROCESS SUMMARY SECTION
     console.print()
     console.rule("[bold cyan]SAMPLING PROCESS SUMMARY[/bold cyan]")
