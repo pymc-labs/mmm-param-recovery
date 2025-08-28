@@ -152,7 +152,7 @@ def evaluate_meridian_fit(
         dw = calculate_durbin_watson(actual - expected)
         
         results.append({
-            "Library": "Meridian",
+            "Model": "Meridian",
             "Geo": geo_label,
             "R²": round(r2, 4) if not np.isnan(r2) else None,
             "MAPE (%)": round(mape, 2) if not np.isnan(mape) else None,
@@ -203,7 +203,7 @@ def evaluate_pymc_fit(
         dw = calculate_durbin_watson(actual - expected)
         
         results.append({
-            "Library": f"PyMC-Marketing - {sampler}",
+            "Model": f"PyMC-Marketing - {sampler}",
             "Geo": geo_label,
             "R²": round(r2, 4) if not np.isnan(r2) else None,
             "MAPE (%)": round(mape, 2) if not np.isnan(mape) else None,
@@ -238,11 +238,11 @@ def create_performance_summary(
     dataset_order = {name: i for i, name in enumerate(dataset_names)}
     performance_df["dataset_order"] = performance_df["Dataset"].map(dataset_order)
     performance_df = performance_df.sort_values(
-        by=["dataset_order", "Geo", "Library"]
+        by=["dataset_order", "Geo", "Model"]
     ).drop(columns="dataset_order")
     
     melted_df = performance_df.melt(
-        id_vars=["Dataset", "Geo", "Library"],
+        id_vars=["Dataset", "Geo", "Model"],
         value_vars=["R²", "MAPE (%)", "Durbin-Watson"],
         var_name="Metric",
         value_name="Value"
@@ -250,7 +250,7 @@ def create_performance_summary(
     
     final_df = melted_df.pivot_table(
         index=["Dataset", "Geo", "Metric"],
-        columns="Library",
+        columns="Model",
         values="Value"
     ).reset_index()
     

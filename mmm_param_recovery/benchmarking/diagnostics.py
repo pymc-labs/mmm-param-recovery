@@ -218,7 +218,7 @@ def create_diagnostics_summary(
         
         rows.append({
             'Dataset': dataset_name,
-            'Library': key,
+            'Model': key,
             'Runtime (s)': runtime,
             'ESS min': ess.get('min'),
             'ESS q50': ess.get('q50'),

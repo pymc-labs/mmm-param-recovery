@@ -444,7 +444,7 @@ def create_summary_tables(
             ]:
                 ess_rows.append({
                     "Dataset": dataset_name,
-                    "Sampler": key,
+                    "Model": key,
                     "ESS": metric_name,
                     "value": metric_value
                 })
@@ -490,21 +490,23 @@ def create_summary_tables(
     storage.save_summary_dataframe(ess_df, "ess_comparison")
     
     ess_pivot = ess_df.pivot_table(
-        index=["Dataset", "Sampler"],
+        index=["Dataset", "Model"],
         columns="ESS",
         values="value"
     ).round(2)
+    # Sort by Dataset first, then by Model
+    ess_pivot = ess_pivot.sort_index(level=['Dataset', 'Model'])
     # Create Rich table for ESS summary
     ess_table = Table(title="ESS Summary", box=box.ROUNDED)
     ess_table.add_column("Dataset", style="cyan")
-    ess_table.add_column("Sampler", style="yellow")
+    ess_table.add_column("Model", style="yellow")
     for col in ['min', 'q10', 'q50', 'q90']:
         ess_table.add_column(col, justify="right")
     
     for idx, row in ess_pivot.iterrows():
-        dataset, sampler = idx
+        dataset, model = idx
         ess_table.add_row(
-            dataset, sampler,
+            dataset, model,
             *[f"{row[col]:.0f}" if pd.notna(row[col]) else "N/A" for col in ['min', 'q10', 'q50', 'q90']]
         )
     
@@ -516,13 +518,13 @@ def create_summary_tables(
         # Reshape runtime data for merging
         runtime_melted = runtime_df.reset_index().melt(
             id_vars="Dataset",
-            var_name="Sampler",
+            var_name="Model",
             value_name="Runtime"
         )
         
         # Reshape ESS data to wide format
         ess_wide = ess_df.pivot_table(
-            index=["Dataset", "Sampler"],
+            index=["Dataset", "Model"],
             columns="ESS",
             values="value"
         ).reset_index()
@@ -530,7 +532,7 @@ def create_summary_tables(
         # Merge ESS and runtime data
         ess_with_runtime = ess_wide.merge(
             runtime_melted,
-            on=["Dataset", "Sampler"],
+            on=["Dataset", "Model"],
             how="inner"
         )
         
@@ -541,7 +543,7 @@ def create_summary_tables(
                 if metric in row and pd.notna(row[metric]) and row["Runtime"] > 0:
                     ess_per_second_rows.append({
                         "Dataset": row["Dataset"],
-                        "Sampler": row["Sampler"],
+                        "Model": row["Model"],
                         "Metric": f"{metric}_per_s",
                         "ESS_per_s": row[metric] / row["Runtime"]
                     })
@@ -555,26 +557,28 @@ def create_summary_tables(
             
             # Pivot for display
             ess_per_s_pivot = ess_per_second_df.pivot_table(
-                index=["Dataset", "Sampler"],
+                index=["Dataset", "Model"],
                 columns="Metric",
                 values="ESS_per_s"
             )
             
-            # Sort by median ESS/s (q50_per_s)
+            # Sort by Dataset first, then by median ESS/s (q50_per_s) within each dataset
             if "q50_per_s" in ess_per_s_pivot.columns:
-                ess_per_s_pivot = ess_per_s_pivot.sort_values("q50_per_s", ascending=False)
+                ess_per_s_pivot = ess_per_s_pivot.sort_index(level='Dataset').sort_values("q50_per_s", ascending=False)
+            else:
+                ess_per_s_pivot = ess_per_s_pivot.sort_index(level=['Dataset', 'Model'])
             
             # Create Rich table for ESS/s summary
             ess_per_s_table = Table(title="ESS/s (Efficiency) Summary", box=box.ROUNDED)
             ess_per_s_table.add_column("Dataset", style="cyan")
-            ess_per_s_table.add_column("Sampler", style="yellow")
+            ess_per_s_table.add_column("Model", style="yellow")
             for col in ess_per_s_pivot.columns:
                 ess_per_s_table.add_column(col, justify="right")
             
             for idx, row in ess_per_s_pivot.iterrows():
-                dataset, sampler = idx
+                dataset, model = idx
                 ess_per_s_table.add_row(
-                    dataset, sampler,
+                    dataset, model,
                     *[f"{row[col]:.2f}" if pd.notna(row[col]) else "N/A" for col in ess_per_s_pivot.columns]
                 )
             
@@ -584,12 +588,16 @@ def create_summary_tables(
     # Save diagnostics summary
     if all_diagnostics_rows:
         diagnostics_df = pd.concat(all_diagnostics_rows, ignore_index=True)
+        # Sort diagnostics by Dataset and Model
+        if 'Library' in diagnostics_df.columns:
+            diagnostics_df = diagnostics_df.rename(columns={'Library': 'Model'})
+        diagnostics_df = diagnostics_df.sort_values(['Dataset', 'Model'])
         storage.save_summary_dataframe(diagnostics_df, "diagnostics_summary")
         # Create Rich table for diagnostics summary
         diag_table = Table(title="Diagnostics Summary", box=box.ROUNDED)
         for col in diagnostics_df.columns:
-            justify = "right" if col not in ["Dataset", "Library"] else "left"
-            diag_table.add_column(col, justify=justify, style="cyan" if col == "Dataset" else "yellow" if col == "Library" else None)
+            justify = "right" if col not in ["Dataset", "Model"] else "left"
+            diag_table.add_column(col, justify=justify, style="cyan" if col == "Dataset" else "yellow" if col == "Model" else None)
         
         for _, row in diagnostics_df.iterrows():
             values = []
@@ -620,6 +628,12 @@ def create_summary_tables(
             all_performance_rows,
             dataset_names
         )
+        # Ensure consistent column naming - rename Library to Model if it exists
+        if 'Library' in performance_df.columns:
+            performance_df = performance_df.rename(columns={'Library': 'Model'})
+        # Now sort by Dataset and Model
+        if 'Dataset' in performance_df.columns and 'Model' in performance_df.columns:
+            performance_df = performance_df.sort_values(['Dataset', 'Model'])
         storage.save_summary_dataframe(performance_df, "insample_fit_metrics")
         # Create Rich table for in-sample fit error metrics
         perf_table = Table(title="In-sample Fit Error Metrics", box=box.ROUNDED)
@@ -652,6 +666,8 @@ def create_summary_tables(
     if all_channel_contribution_dfs:
         # Combine all per-channel DataFrames
         channel_metrics_df = pd.concat(all_channel_contribution_dfs, ignore_index=True)
+        # Sort by Dataset and Model
+        channel_metrics_df = channel_metrics_df.sort_values(['Dataset', 'Model'])
         storage.save_summary_dataframe(channel_metrics_df, "channel_contribution_metrics")
         # Create Rich table for channel contributions (showing sample)
         channel_table = Table(
@@ -692,6 +708,8 @@ def create_summary_tables(
     # Save channel contribution recovery error metrics
     if all_channel_averages:
         channel_avg_df = pd.DataFrame(all_channel_averages)
+        # Sort by Dataset and Model
+        channel_avg_df = channel_avg_df.sort_values(['Dataset', 'Model'])
         storage.save_summary_dataframe(channel_avg_df, "channel_contribution_averages")
         # Create Rich table for channel contribution recovery
         avg_table = Table(title="Channel Contribution Recovery", box=box.ROUNDED)
@@ -721,6 +739,8 @@ def create_summary_tables(
     # Save parameter counts summary
     if all_parameter_counts:
         param_df = parameter_counter.create_parameter_summary(all_parameter_counts)
+        # Sort by Dataset and Model
+        param_df = param_df.sort_values(['Dataset', 'Model'])
         storage.save_summary_dataframe(param_df, "parameter_counts")
         
         # Create Rich table for parameter counts
@@ -808,8 +828,13 @@ def create_summary_tables(
             revenue_table.add_column("MAPE (%) Posterior Mean", justify="right")  # Traditional-style for comparison
             revenue_table.add_column("Durbin-Watson (mean ± std) [90% CI]", justify="right")
             
-            for dataset_name, models in bayesian_revenue_results.items():
-                for model_name, metrics in models.items():
+            # Sort by dataset and model for consistent display
+            sorted_datasets = sorted(bayesian_revenue_results.keys())
+            for dataset_name in sorted_datasets:
+                models = bayesian_revenue_results[dataset_name]
+                sorted_models = sorted(models.keys())
+                for model_name in sorted_models:
+                    metrics = models[model_name]
                     r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
                         metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
                     )
@@ -865,8 +890,13 @@ def create_summary_tables(
             contrib_table.add_column("Avg R² (mean ± std) [90% CI]", justify="right")
             contrib_table.add_column("Avg MAPE (%) (mean ± std) [90% CI]", justify="right")
             
-            for dataset_name, models in bayesian_contrib_results.items():
-                for model_name, metrics in models.items():
+            # Sort by dataset and model for consistent display
+            sorted_datasets = sorted(bayesian_contrib_results.keys())
+            for dataset_name in sorted_datasets:
+                models = bayesian_contrib_results[dataset_name]
+                sorted_models = sorted(models.keys())
+                for model_name in sorted_models:
+                    metrics = models[model_name]
                     bias_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
                         metrics.get('Bias', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
                     )
