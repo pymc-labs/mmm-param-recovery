@@ -91,6 +91,116 @@ pip install --user -r gpu-requirements-compiled.txt
 ipython kernel install --name python311 --display-name "Python 3.11"  --user
 ```
 
+## Model Parameterization and Priors
+
+This section details the exact model specifications used in the benchmark to ensure reproducibility.
+
+### PyMC-Marketing MMM
+
+#### Model Structure
+- **Adstock**: Geometric adstock with maximum lag of 8 weeks
+- **Saturation**: Hill saturation with sigmoid transformation (hierarchical)
+- **Seasonality**: Yearly seasonality with 2 Fourier modes
+- **Scaling**: Max scaling for both channels and target (dims=())
+
+#### Prior Specifications
+```python
+# Adstock decay
+adstock_alpha ~ Beta(alpha=1, beta=3)  # Per channel
+
+# Saturation parameters (hierarchical)
+saturation_sigma ~ InverseGamma(
+    mu=HalfNormal(sigma=prior_sigma_per_channel),  # Population mean
+    sigma=HalfNormal(sigma=1.5),                    # Population std
+    dims=("channel", "geo")
+)
+saturation_beta ~ HalfNormal(sigma=1.5)  # Per channel
+saturation_lam ~ HalfNormal(sigma=1.5)   # Per channel
+
+# Control effects
+gamma_control ~ Normal(0, 2)  # Implicit default, per control
+
+# Intercept
+intercept ~ Normal(mu=y_mean, sigma=y_std*2)  # Per geo
+
+# Seasonality
+gamma_fourier ~ Normal(0, 1)  # Per geo × fourier_mode
+
+# Observation noise
+y_sigma ~ HalfNormal(sigma=y_std*2)  # Per geo
+```
+
+Where `prior_sigma_per_channel = n_channels * spend_share` (spend share normalized per geo).
+
+### Google Meridian
+
+#### Model Structure
+- **Adstock**: Geometric adstock with maximum lag of 8 weeks
+- **Saturation**: Hill transformation applied after adstock
+- **Trend**: Spline-based with knots every 26 weeks
+- **Geo effects**: Unique sigma for each geo
+
+#### Prior Specifications
+```python
+# Adstock decay  
+alpha_m ~ Beta(alpha=1.0, beta=3.0)  # Per channel (matching PyMC)
+
+# Media coefficients
+beta_m ~ LogNormal(mu=0, sigma=prior_sigma_per_channel)  # Population level
+beta_gm ~ Normal(0, 1)  # Geo-specific deviations
+eta_m ~ HalfNormal(1)  # Media noise
+
+# Hill saturation
+ec_m ~ Beta(2, 2)  # Half-saturation point
+slope_m ~ Gamma(2, 1)  # Hill slope
+
+# Control effects
+gamma_c ~ Normal(0, 1)  # Population level
+gamma_gc ~ Normal(0, 1)  # Geo-specific
+xi_c ~ HalfNormal(1)  # Control noise
+
+# Baseline
+tau_g ~ Normal(0, 5)  # Per geo
+
+# Trend splines
+knot_values ~ Normal(0, 5)  # Per knot
+
+# Observation noise
+sigma ~ HalfNormal(5)  # Single global parameter
+```
+
+### Key Differences
+
+1. **Media Response Parameterization**:
+   - PyMC: Uses hierarchical Hill saturation parameters that directly encode media effects
+   - Meridian: Separates linear coefficients (beta) from saturation transformation (ec, slope)
+
+2. **Geo-level Modeling**:
+   - PyMC: Hierarchical priors with partial pooling across geos
+   - Meridian: Explicit geo-specific parameters with population baselines
+
+3. **Time-varying Effects**:
+   - PyMC: Fourier-based seasonality (2 modes)
+   - Meridian: Spline-based trend (knots every 26 weeks)
+
+4. **Prior Informativeness**:
+   - Both use weakly informative priors
+   - Prior sigma for media effects based on spend shares in both models
+   - Adstock priors favor faster decay (E[alpha] = 0.25)
+
+### Parameter Count Comparison
+
+For a dataset with G geos, C channels, and K controls:
+
+| Component | PyMC-Marketing | Meridian |
+|-----------|---------------|----------|
+| Adstock | C | C |
+| Media Response | C×(3 + G) + hierarchical | C×(5 + G) |
+| Controls | K | K×(2 + G) + K |
+| Baseline/Intercept | G | G |
+| Time Effects | G×4 (seasonality) | 4-6 (trend knots) |
+| Noise | G | 1 |
+
 ## Notes
 
 - **Memory constraints**: `blackjax` and `numpyro` samplers are automatically skipped for large datasets

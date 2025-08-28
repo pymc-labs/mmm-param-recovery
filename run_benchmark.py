@@ -28,7 +28,8 @@ from mmm_param_recovery.benchmarking import (
     evaluation,
     visualization,
     storage,
-    bayesian_evaluation
+    bayesian_evaluation,
+    parameter_counter
 )
 
 
@@ -171,6 +172,7 @@ def run_benchmark_for_dataset(
     all_performance_rows = []
     all_channel_contribution_rows = []
     channel_contribution_averages = []
+    all_parameter_counts = []
     
     # PHASE 1: Fit and save models (if needed) with memory isolation
     if not args.plots_only:
@@ -249,6 +251,12 @@ def run_benchmark_for_dataset(
             **avg_metrics
         })
         
+        # Count parameters
+        param_counts = parameter_counter.categorize_parameters(meridian_result, "meridian")
+        param_counts["Dataset"] = dataset_name
+        param_counts["Model"] = "Meridian"
+        all_parameter_counts.append(param_counts)
+        
         visualization.plot_meridian_posterior_predictive(
             meridian_result, data_df, dataset_name
         )
@@ -280,6 +288,12 @@ def run_benchmark_for_dataset(
                     **avg_metrics
                 })
                 
+                # Count parameters
+                param_counts = parameter_counter.categorize_parameters(pymc_result, "pymc")
+                param_counts["Dataset"] = dataset_name
+                param_counts["Model"] = f"PyMC-Marketing - {sampler}"
+                all_parameter_counts.append(param_counts)
+                
                 visualization.plot_pymc_posterior_predictive(
                     pymc_result, data_df, dataset_name, sampler
                 )
@@ -287,6 +301,7 @@ def run_benchmark_for_dataset(
     results["performance"] = all_performance_rows
     results["channel_contributions"] = all_channel_contribution_rows
     results["channel_averages"] = channel_contribution_averages
+    results["parameter_counts"] = all_parameter_counts
     
     # PHASE 3: Bayesian Evaluation (if requested)
     if args.bayesian_metrics:
@@ -391,6 +406,7 @@ def create_summary_tables(
     all_performance_rows = []
     all_channel_contribution_dfs = []
     all_channel_averages = []
+    all_parameter_counts = []
     
     for dataset_name in dataset_names:
         dataset_results = all_results[dataset_name]
@@ -405,6 +421,9 @@ def create_summary_tables(
                 continue
             elif key == "channel_averages":
                 all_channel_averages.extend(value)
+                continue
+            elif key == "parameter_counts":
+                all_parameter_counts.extend(value)
                 continue
             elif key == "bayesian_metrics":
                 # Skip bayesian_metrics as it's handled separately
@@ -433,7 +452,7 @@ def create_summary_tables(
         # Create diagnostics summary - filter out non-model entries
         model_results = {
             k: v for k, v in dataset_results.items() 
-            if k not in ["performance", "channel_contributions", "channel_averages", "bayesian_metrics"]
+            if k not in ["performance", "channel_contributions", "channel_averages", "parameter_counts", "bayesian_metrics"]
         }
         diag_df = diagnostics.create_diagnostics_summary(
             model_results,
@@ -698,6 +717,41 @@ def create_summary_tables(
         
         console.print()
         console.print(avg_table)
+    
+    # Save parameter counts summary
+    if all_parameter_counts:
+        param_df = parameter_counter.create_parameter_summary(all_parameter_counts)
+        storage.save_summary_dataframe(param_df, "parameter_counts")
+        
+        # Create Rich table for parameter counts
+        param_table = Table(title="Model Parameter Counts", box=box.ROUNDED)
+        
+        for col in param_df.columns:
+            if col == "Dataset":
+                param_table.add_column(col, style="cyan")
+            elif col == "Model":
+                param_table.add_column(col, style="yellow")
+            elif col == "total":
+                param_table.add_column(col, style="bold green", justify="right")
+            else:
+                param_table.add_column(col, justify="right")
+        
+        for _, row in param_df.iterrows():
+            values = []
+            for col in param_df.columns:
+                val = row[col]
+                if pd.isna(val):
+                    values.append("N/A")
+                elif col == "total":
+                    values.append(f"[bold green]{int(val)}[/bold green]")
+                elif isinstance(val, (int, float)):
+                    values.append(str(int(val)))
+                else:
+                    values.append(str(val))
+            param_table.add_row(*values)
+        
+        console.print()
+        console.print(param_table)
     
     # Save Bayesian metrics summary (if available)
     if any('bayesian_metrics' in result for result in all_results.values()):

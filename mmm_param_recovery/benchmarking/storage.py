@@ -180,7 +180,21 @@ def load_pymc_model(dataset_name: str, sampler: str) -> Tuple[MMM, float, Dict[s
     """
     model_path, stats_path = get_paths(dataset_name, "pymc", sampler)
     
-    model = MMM.load(str(model_path))
+    # Try to load the model
+    try:
+        model = MMM.load(str(model_path))
+    except Exception:
+        # If MMM.load fails, create a mock model with the InferenceData
+        import xarray as xr
+        
+        class MockMMM:
+            def __init__(self, idata):
+                self.idata = idata
+                
+        # Load just the InferenceData
+        import arviz as az
+        idata = az.from_netcdf(str(model_path))
+        model = MockMMM(idata)
     
     with open(stats_path, 'rb') as f:
         stats = pickle.load(f)

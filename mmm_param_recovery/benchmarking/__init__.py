@@ -7,6 +7,7 @@ from . import diagnostics
 from . import evaluation
 from . import visualization
 from . import storage
+from . import parameter_counter
 
 __all__ = [
     "data_loader",
@@ -16,4 +17,5 @@ __all__ = [
     "evaluation",
     "visualization",
     "storage",
+    "parameter_counter",
 ]
