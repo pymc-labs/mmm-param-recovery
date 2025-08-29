@@ -255,14 +255,6 @@ def plot_pymc_posterior_predictive(
     plt.close('all')
 
 
-
-
-
-
-
-
-
-
 def plot_model_comparison(
     meridian_model: Any,
     pymc_model: Any,
