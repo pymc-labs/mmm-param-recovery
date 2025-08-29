@@ -1,0 +1,1 @@
+You are a senior data scientist familiarize yourself with this repository and code style by reading carefull every file in particular the large dataset notebook and the run_benchmark.py. After that research throughly the API of pymc-marketing and meridian and be ready to use it without making any mistakes.
