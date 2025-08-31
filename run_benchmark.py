@@ -332,8 +332,8 @@ def run_benchmark_for_dataset(
             
             # Print summary
             for geo, metrics in revenue_metrics.items():
-                console.print(f"  {geo} - R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(metrics['R²'], 2)}")
-            console.print(f"  Channel Contributions - Avg R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(contrib_aggregated['R²'], 2)}")
+                console.print(f"  {geo} - R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(metrics['R²'], 3)}")
+            console.print(f"  Channel Contributions - Avg R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(contrib_aggregated['R²'], 3)}")
         
         # Evaluate PyMC models with Bayesian metrics
         for sampler in args.samplers:
@@ -360,8 +360,8 @@ def run_benchmark_for_dataset(
                 
                 # Print summary
                 for geo, metrics in revenue_metrics.items():
-                    print(f"  {geo} - R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(metrics['R²'], 3)}")
-                print(f"  Channel Contributions - Avg R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_ci(contrib_aggregated['R²'], 3)}")
+                    print(f"  {geo} - R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(metrics['R²'], 3)}")
+                print(f"  Channel Contributions - Avg R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(contrib_aggregated['R²'], 3)}")
         
         results["bayesian_metrics"] = bayesian_results
     
@@ -833,10 +833,10 @@ def create_summary_tables(
             revenue_table = Table(title="Bayesian In-sample Fit Error Metrics", box=box.ROUNDED)
             revenue_table.add_column("Dataset", style="cyan")
             revenue_table.add_column("Model", style="yellow")
-            revenue_table.add_column("R² (mean ± std) [90% CI]", justify="right")
+            revenue_table.add_column("R² (mean ± std) 90% HDI", justify="right")
             revenue_table.add_column("MAPE (%) Bayesian", justify="right")  # Proper Bayesian with uncertainty
             revenue_table.add_column("MAPE (%) Posterior Mean", justify="right")  # Traditional-style for comparison
-            revenue_table.add_column("Durbin-Watson (mean ± std) [90% CI]", justify="right")
+            revenue_table.add_column("Durbin-Watson (mean ± std) 90% HDI", justify="right")
             
             # Sort by dataset and model for consistent display
             sorted_datasets = sorted(bayesian_revenue_results.keys())
@@ -845,17 +845,17 @@ def create_summary_tables(
                 sorted_models = sorted(models.keys())
                 for model_name in sorted_models:
                     metrics = models[model_name]
-                    r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
+                    r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
+                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 3
                     )
                     # Show both MAPE calculations
-                    mape_bayesian_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('MAPE (%)', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 1
+                    mape_bayesian_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
+                        metrics.get('MAPE (%)', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 1
                     )
                     mape_posterior_mean = metrics.get('MAPE_posterior_mean (%)', np.nan)
                     mape_pm_str = f"{mape_posterior_mean:.1f}" if not np.isnan(mape_posterior_mean) else "N/A"
-                    dw_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('Durbin-Watson', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
+                    dw_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
+                        metrics.get('Durbin-Watson', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 3
                     )
                     revenue_table.add_row(dataset_name, model_name, r2_str, mape_bayesian_str, mape_pm_str, dw_str)
             
@@ -869,17 +869,17 @@ def create_summary_tables(
                     'Model': model,
                     'R2_mean': metrics.get('R²', {}).get('mean', np.nan),
                     'R2_std': metrics.get('R²', {}).get('std', np.nan),
-                    'R2_q5': metrics.get('R²', {}).get('q5', np.nan),
-                    'R2_q95': metrics.get('R²', {}).get('q95', np.nan),
+                    'R2_hdi_lower': metrics.get('R²', {}).get('hdi_lower', np.nan),
+                    'R2_hdi_upper': metrics.get('R²', {}).get('hdi_upper', np.nan),
                     'MAPE_bayesian_mean': metrics.get('MAPE (%)', {}).get('mean', np.nan),
                     'MAPE_bayesian_std': metrics.get('MAPE (%)', {}).get('std', np.nan),
-                    'MAPE_bayesian_q5': metrics.get('MAPE (%)', {}).get('q5', np.nan),
-                    'MAPE_bayesian_q95': metrics.get('MAPE (%)', {}).get('q95', np.nan),
+                    'MAPE_bayesian_hdi_lower': metrics.get('MAPE (%)', {}).get('hdi_lower', np.nan),
+                    'MAPE_bayesian_hdi_upper': metrics.get('MAPE (%)', {}).get('hdi_upper', np.nan),
                     'MAPE_posterior_mean': metrics.get('MAPE_posterior_mean (%)', np.nan),
                     'DW_mean': metrics.get('Durbin-Watson', {}).get('mean', np.nan),
                     'DW_std': metrics.get('Durbin-Watson', {}).get('std', np.nan),
-                    'DW_q5': metrics.get('Durbin-Watson', {}).get('q5', np.nan),
-                    'DW_q95': metrics.get('Durbin-Watson', {}).get('q95', np.nan),
+                    'DW_hdi_lower': metrics.get('Durbin-Watson', {}).get('hdi_lower', np.nan),
+                    'DW_hdi_upper': metrics.get('Durbin-Watson', {}).get('hdi_upper', np.nan),
                     'Bias_mean': metrics.get('Bias', {}).get('mean', np.nan),
                     'Bias_std': metrics.get('Bias', {}).get('std', np.nan),
                     'SRMSE_mean': metrics.get('SRMSE', {}).get('mean', np.nan),
@@ -895,10 +895,10 @@ def create_summary_tables(
             contrib_table = Table(title="Bayesian Channel Contribution Recovery", box=box.ROUNDED)
             contrib_table.add_column("Dataset", style="cyan")
             contrib_table.add_column("Model", style="yellow")
-            contrib_table.add_column("Avg Bias (mean ± std) [90% CI]", justify="right")
-            contrib_table.add_column("Avg SRMSE (mean ± std) [90% CI]", justify="right")
-            contrib_table.add_column("Avg R² (mean ± std) [90% CI]", justify="right")
-            contrib_table.add_column("Avg MAPE (%) (mean ± std) [90% CI]", justify="right")
+            contrib_table.add_column("Avg Bias (mean ± std) 90% HDI", justify="right")
+            contrib_table.add_column("Avg SRMSE (mean ± std) 90% HDI", justify="right")
+            contrib_table.add_column("Avg R² (mean ± std) 90% HDI", justify="right")
+            contrib_table.add_column("Avg MAPE (%) (mean ± std) 90% HDI", justify="right")
             
             # Sort by dataset and model for consistent display
             sorted_datasets = sorted(bayesian_contrib_results.keys())
@@ -907,17 +907,17 @@ def create_summary_tables(
                 sorted_models = sorted(models.keys())
                 for model_name in sorted_models:
                     metrics = models[model_name]
-                    bias_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('Bias', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
+                    bias_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
+                        metrics.get('Bias', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 3
                     )
-                    srmse_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('SRMSE', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
+                    srmse_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
+                        metrics.get('SRMSE', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 3
                     )
-                    r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 2
+                    r2_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
+                        metrics.get('R²', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 3
                     )
-                    mape_str = bayesian_evaluation.bayesian_metrics.format_metric_with_ci(
-                        metrics.get('MAPE (%)', {'mean': np.nan, 'std': np.nan, 'q5': np.nan, 'q95': np.nan}), 1
+                    mape_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
+                        metrics.get('MAPE (%)', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 1
                     )
                     contrib_table.add_row(dataset_name, model_name, bias_str, srmse_str, r2_str, mape_str)
             
@@ -931,20 +931,20 @@ def create_summary_tables(
                     'Model': model,
                     'Bias_mean': metrics.get('Bias', {}).get('mean', np.nan),
                     'Bias_std': metrics.get('Bias', {}).get('std', np.nan),
-                    'Bias_q5': metrics.get('Bias', {}).get('q5', np.nan),
-                    'Bias_q95': metrics.get('Bias', {}).get('q95', np.nan),
+                    'Bias_hdi_lower': metrics.get('Bias', {}).get('hdi_lower', np.nan),
+                    'Bias_hdi_upper': metrics.get('Bias', {}).get('hdi_upper', np.nan),
                     'SRMSE_mean': metrics.get('SRMSE', {}).get('mean', np.nan),
                     'SRMSE_std': metrics.get('SRMSE', {}).get('std', np.nan),
-                    'SRMSE_q5': metrics.get('SRMSE', {}).get('q5', np.nan),
-                    'SRMSE_q95': metrics.get('SRMSE', {}).get('q95', np.nan),
+                    'SRMSE_hdi_lower': metrics.get('SRMSE', {}).get('hdi_lower', np.nan),
+                    'SRMSE_hdi_upper': metrics.get('SRMSE', {}).get('hdi_upper', np.nan),
                     'R2_mean': metrics.get('R²', {}).get('mean', np.nan),
                     'R2_std': metrics.get('R²', {}).get('std', np.nan),
-                    'R2_q5': metrics.get('R²', {}).get('q5', np.nan),
-                    'R2_q95': metrics.get('R²', {}).get('q95', np.nan),
+                    'R2_hdi_lower': metrics.get('R²', {}).get('hdi_lower', np.nan),
+                    'R2_hdi_upper': metrics.get('R²', {}).get('hdi_upper', np.nan),
                     'MAPE_mean': metrics.get('MAPE (%)', {}).get('mean', np.nan),
                     'MAPE_std': metrics.get('MAPE (%)', {}).get('std', np.nan),
-                    'MAPE_q5': metrics.get('MAPE (%)', {}).get('q5', np.nan),
-                    'MAPE_q95': metrics.get('MAPE (%)', {}).get('q95', np.nan)
+                    'MAPE_hdi_lower': metrics.get('MAPE (%)', {}).get('hdi_lower', np.nan),
+                    'MAPE_hdi_upper': metrics.get('MAPE (%)', {}).get('hdi_upper', np.nan)
                 }
                 for dataset, models in bayesian_contrib_results.items()
                 for model, metrics in models.items()

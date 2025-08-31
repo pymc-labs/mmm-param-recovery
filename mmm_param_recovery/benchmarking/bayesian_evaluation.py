@@ -348,7 +348,7 @@ def create_summary_dataframe(
                         stats_with_avg['mean'] = geo_avg
                         
                         precision = 2 if 'MAPE' in metric_name else 3
-                        row[metric_name] = bayesian_metrics.format_metric_with_ci(stats_with_avg, precision)
+                        row[metric_name] = bayesian_metrics.format_metric_with_hdi(stats_with_avg, precision)
             
             rows.append(row)
     

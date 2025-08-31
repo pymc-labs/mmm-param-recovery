@@ -1,6 +1,7 @@
 """Bayesian metric calculation functions with proper uncertainty propagation."""
 
 import numpy as np
+import arviz as az
 from typing import Dict, Any
 
 
@@ -166,18 +167,20 @@ def calculate_durbin_watson_vectorized(actual: np.ndarray, predicted: np.ndarray
     return dw_values
 
 
-def compute_summary_stats(metric_array: np.ndarray) -> Dict[str, float]:
-    """Compute summary statistics for a metric across posterior samples.
+def compute_summary_stats(metric_array: np.ndarray, hdi_prob: float = 0.90) -> Dict[str, float]:
+    """Compute summary statistics for a metric across posterior samples using HDI.
     
     Parameters
     ----------
     metric_array : np.ndarray
         Array of metric values across posterior samples
+    hdi_prob : float
+        HDI probability (default 0.90 for 90% HDI)
         
     Returns
     -------
     Dict[str, float]
-        Dictionary with summary statistics
+        Dictionary with summary statistics including HDI bounds
     """
     # Remove NaN values for statistics
     valid_values = metric_array[~np.isnan(metric_array)]
@@ -187,30 +190,33 @@ def compute_summary_stats(metric_array: np.ndarray) -> Dict[str, float]:
             'mean': np.nan,
             'std': np.nan,
             'median': np.nan,
-            'q5': np.nan,
-            'q95': np.nan,
+            'hdi_lower': np.nan,
+            'hdi_upper': np.nan,
             'min': np.nan,
             'max': np.nan
         }
+    
+    # Compute HDI using ArviZ
+    hdi_bounds = az.hdi(valid_values, hdi_prob=hdi_prob)
     
     return {
         'mean': float(np.mean(valid_values)),
         'std': float(np.std(valid_values)),
         'median': float(np.median(valid_values)),
-        'q5': float(np.percentile(valid_values, 5)),
-        'q95': float(np.percentile(valid_values, 95)),
+        'hdi_lower': float(hdi_bounds[0]),
+        'hdi_upper': float(hdi_bounds[1]),
         'min': float(np.min(valid_values)),
         'max': float(np.max(valid_values))
     }
 
 
-def format_metric_with_ci(stats: Dict[str, float], precision: int = 2) -> str:
-    """Format a metric with confidence interval.
+def format_metric_with_hdi(stats: Dict[str, float], precision: int = 2) -> str:
+    """Format a metric with HDI (Highest Density Interval).
     
     Parameters
     ----------
     stats : Dict[str, float]
-        Dictionary with summary statistics
+        Dictionary with summary statistics including HDI bounds
     precision : int
         Number of decimal places
         
@@ -223,4 +229,4 @@ def format_metric_with_ci(stats: Dict[str, float], precision: int = 2) -> str:
         return "N/A"
     
     fmt = f"{{:.{precision}f}}"
-    return f"{fmt.format(stats['mean'])} ± {fmt.format(stats['std'])} [{fmt.format(stats['q5'])}, {fmt.format(stats['q95'])}]"
+    return f"{fmt.format(stats['mean'])} ± {fmt.format(stats['std'])} [{fmt.format(stats['hdi_lower'])}, {fmt.format(stats['hdi_upper'])}]"
