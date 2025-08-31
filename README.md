@@ -207,3 +207,9 @@ For a dataset with G geos, C channels, and K controls:
 - **Sequential execution**: Models are fitted one at a time to conserve CPU resources
 - **Incremental saving**: Each model is saved immediately after fitting to prevent data loss
 - **Caching**: Dataset generation and model fitting results are cached by default
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+Copyright 2025 PyMC Labs
