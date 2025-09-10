@@ -1,0 +1,16 @@
+MMM Parameter Recovery Benchmarking Framework
+Copyright 2025 PyMC Labs
+
+This product includes software developed at PyMC Labs.
+
+This framework benchmarks PyMC-Marketing and Google Meridian for Media Mix Modeling (MMM) 
+parameter recovery using synthetic datasets with known ground truth.
+
+Third-party libraries and dependencies:
+- PyMC-Marketing: Apache License 2.0
+- Google Meridian: Apache License 2.0
+- PyMC: Apache License 2.0
+- TensorFlow/TensorFlow Probability: Apache License 2.0
+- NumPy: BSD License
+- Pandas: BSD License
+- ArviZ: Apache License 2.0

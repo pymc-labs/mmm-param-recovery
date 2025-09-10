@@ -75,21 +75,6 @@ data/results/
     └── diagnostics_summary.csv     # Convergence diagnostics
 ```
 
-### Jupyter Notebooks
-
-For interactive exploration, use the provided notebooks:
-
-- `comparison_all_cpu_adstock.ipynb` - Main comparison notebook
-- `comparison_all_cpu_adstock_large_dataset.ipynb` - Large dataset benchmark
-
-## GPU Tests
-
-```shell
-conda create -n python311 python=3.11 -y && conda activate python311
-conda install pip
-pip install --user -r gpu-requirements-compiled.txt
-ipython kernel install --name python311 --display-name "Python 3.11"  --user
-```
 
 ## Model Parameterization and Priors
 
@@ -207,3 +192,9 @@ For a dataset with G geos, C channels, and K controls:
 - **Sequential execution**: Models are fitted one at a time to conserve CPU resources
 - **Incremental saving**: Each model is saved immediately after fitting to prevent data loss
 - **Caching**: Dataset generation and model fitting results are cached by default
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+Copyright 2025 PyMC Labs
