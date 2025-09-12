@@ -1,9 +1,15 @@
 # PyMC-Marketing vs. Meridian
-We compare the two libraries in the following categories, from most important to least:
+This repository provides an open-source benchmark for comparing two libraries using synthetically generated data that is representative of real world marketing patterns. The evaluation covers four key categories:
+
 - Contribution recovery
-- Predictive power
-- Sampling efficiency (ESS / s)
-- RAM footprint in sampling and of the final fitted model
+- Predictive accuracy (in-sample)
+- Sampling efficiency (ESS/s)
+- RAM footprint during sampling and in the final fitted model
+
+The repository includes both the code for generating synthetic data—designed to mimic real marketing performance and the scripts for running the benchmark evaluations.
+
+> **Note**  
+> A summary of the results of this benchmark has been published in this [blog post](https://www.pymc-labs.com/blog-posts/pymc-marketing-vs-google-meridian).
 
 ## Quick Start
 
