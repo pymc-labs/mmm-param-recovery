@@ -1,3 +1,6 @@
+LICENSE
+NOTICE
+README.md
 pyproject.toml
 mmm_param_recovery/__init__.py
 mmm_param_recovery.egg-info/PKG-INFO
@@ -5,6 +8,17 @@ mmm_param_recovery.egg-info/SOURCES.txt
 mmm_param_recovery.egg-info/dependency_links.txt
 mmm_param_recovery.egg-info/requires.txt
 mmm_param_recovery.egg-info/top_level.txt
+mmm_param_recovery/benchmarking/__init__.py
+mmm_param_recovery/benchmarking/bayesian_evaluation.py
+mmm_param_recovery/benchmarking/bayesian_metrics.py
+mmm_param_recovery/benchmarking/data_loader.py
+mmm_param_recovery/benchmarking/diagnostics.py
+mmm_param_recovery/benchmarking/evaluation.py
+mmm_param_recovery/benchmarking/model_builder.py
+mmm_param_recovery/benchmarking/model_fitter.py
+mmm_param_recovery/benchmarking/parameter_counter.py
+mmm_param_recovery/benchmarking/storage.py
+mmm_param_recovery/benchmarking/visualization.py
 mmm_param_recovery/data_generator/__init__.py
 mmm_param_recovery/data_generator/channels.py
 mmm_param_recovery/data_generator/config.py
@@ -21,3 +35,4 @@ tests/test_ground_truth.py
 tests/test_presets_validation.py
 tests/test_schema.py
 tests/test_transforms.py
+tests/test_visualization.py
