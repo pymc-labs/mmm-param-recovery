@@ -54,19 +54,28 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/pymc-labs/mmm-param-recovery"
-Documentation = "https://github.com/pymc-labs/mmm-param-recovery"
+Documentation = "https://github.com/pymc-labs/mmm-param-recovery/tree/main/packages/mmm-param-recovery"
 Repository = "https://github.com/pymc-labs/mmm-param-recovery"
 Issues = "https://github.com/pymc-labs/mmm-param-recovery/issues"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["mmm_data_generator*", "mmm_param_recovery*"]
+where = ["src"]
+include = ["mmm_param_recovery*"]
 
+[tool.setuptools.package-data]
+mmm_param_recovery = ["py.typed"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["../../tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short" 
+addopts = "-v --tb=short"
 
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["E501"]  # Line too long (handled by formatter)

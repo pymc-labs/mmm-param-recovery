@@ -30,10 +30,10 @@ google-meridian = ">=1.1.6,<2"
 rich = "*"
 
 [pypi-dependencies]
-mmm-data-generator = { path = "packages/mmm-data-generator", editable = true }
-mmm-param-recovery = { path = "packages/mmm-param-recovery", editable = true }
+mmm-data-generator = { path = "mmm_data_generator", editable = true }
+mmm-param-recovery = { path = "mmm_param_recovery", editable = true }
 
 [tasks]
 test = "pytest tests/"
-lint = "ruff check packages/"
-format = "ruff format packages/"
+lint = "ruff check mmm_data_generator/ mmm_param_recovery/"
+format = "ruff format mmm_data_generator/ mmm_param_recovery/"

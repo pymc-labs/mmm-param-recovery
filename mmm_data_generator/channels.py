@@ -1,0 +1,369 @@
+# Copyright 2025 PyMC Labs
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Channel pattern generation for MMM Dataset Generator.
+
+This module contains functions for generating different channel spend patterns.
+"""
+
+import warnings
+import numpy as np
+import pandas as pd
+from typing import Optional
+from .config import ChannelConfig, ControlConfig
+
+
+def _generate_linear_trend_pattern(
+    n_periods: int,
+    base_spend: float,
+    spend_trend: float,
+    spend_volatility: float,
+    seed: Optional[int] = None
+) -> np.ndarray:
+    """
+    Generate a channel pattern with a AR(2) process and a linear trend.
+    
+    Parameters
+    ----------
+    n_periods : int
+        Number of time periods
+    base_spend : float
+        Base spend level
+    spend_trend : float
+        Slope of the trend line (positive = increasing, negative = decreasing)
+    spend_volatility : float
+        Standard deviation of the noise relative to the base spend.
+    seed : int, optional
+        Random seed for reproducibility
+        
+    Returns
+    -------
+    np.ndarray
+        Spend values for each time period
+    """
+    if seed is not None:
+        rng = np.random.default_rng(seed)
+    else:
+        rng = np.random.default_rng()
+    
+    # Generate linear trend from base_spend to base_spend + trend
+    trend_range = spend_trend * n_periods
+    linear_trend = np.linspace(0, trend_range, n_periods)
+    
+    # Add noise with specified volatility
+    noise_std = base_spend * spend_volatility
+    spend = rng.normal(0, noise_std, n_periods)
+    for t in range(2, n_periods):
+        spend[t] = max(0, 0.7 * spend[t-1] + 0.3 * spend[t-2] +
+            # Modify AR(2) process to simulate campaign-like spending
+            rng.normal(-0.1 * spend[t-1], noise_std, 1)[0]
+            )
+    # Combine trend and noise, ensure non-negative values
+    spend *= (1 + linear_trend)
+    spend = np.clip(spend, 0, None)
+    assert np.any(spend > 0)
+        
+    return spend.astype(float)
+
+
+def _generate_seasonal_pattern(
+    time_index: pd.DatetimeIndex,
+    base_spend: float,
+    seasonal_amplitude: float,
+    seasonal_phase: float,
+    spend_volatility: float,
+    seed: Optional[int] = None
+) -> np.ndarray:
+    """
+    Generate seasonal channel pattern with annual seasonality.
+    
+    Parameters
+    ----------
+    time_index : pd.DatetimeIndex
+        Time index for the data
+    base_spend : float
+        Base spend level
+    seasonal_amplitude : float
+        Amplitude of seasonal variation in relative to the base spend (0-1)
+    seasonal_phase : float
+        Phase shift in radians. With seasonal_phase = 0, peaks in summer, and drops in winter.
+    spend_volatility : float
+        Standard deviation of the noise relative to the base spend.
+    seed : int, optional
+        Random seed for reproducibility
+        
+    Returns
+    -------
+    np.ndarray
+        Spend values for each time period
+    """
+    if seed is not None:
+        rng = np.random.default_rng(seed)
+    else:
+        rng = np.random.default_rng()
+    
+    n_periods = len(time_index)
+    
+    # Generate seasonal pattern based on day of year
+    day_of_year = time_index.dayofyear
+    
+    # Create seasonal pattern by scaling the base spend pattern
+    # with a cosine function
+    seasonality = np.cos(seasonal_phase + 4 * np.pi * day_of_year / 365.25)
+     
+    # Generate the base spend pattern
+    seasonal_spend = _generate_linear_trend_pattern(
+        n_periods=n_periods,
+        base_spend=base_spend,
+        spend_trend=0,
+        spend_volatility=spend_volatility,
+        seed=seed
+    )
+    # Scale the base spend pattern by the seasonal amplitude and seasonality
+    # clip to ensure non-negative values.
+    spend = np.clip(seasonal_spend * seasonal_amplitude * seasonality, 0, None)
+    
+    return spend.astype(float)
+
+
+def _generate_delayed_start_pattern(
+    n_periods: int,
+    base_spend: float,
+    start_period: int,
+    end_period: int,
+    ramp_up_periods: int,
+    spend_volatility: float,
+    seed: Optional[int] = None
+) -> np.ndarray:
+    """
+    Generate delayed start channel pattern with configurable start time.
+    
+    Parameters
+    ----------
+    n_periods : int
+        Number of time periods
+    base_spend : float
+        Base spend level
+    start_period : int
+        Period when channel starts (0-indexed)
+    end_period : int
+        Period when channel ends (0-indexed)
+    ramp_up_periods : int
+        Number of periods to ramp up to full spend
+    spend_volatility : float
+        Standard deviation of the noise relative to the base spend.
+    seed : int, optional
+        Random seed for reproducibility
+        
+    Returns
+    -------
+    np.ndarray
+        Spend values for each time period
+    """
+    if seed is not None:
+        rng = np.random.default_rng(seed)
+    else:
+        rng = np.random.default_rng()
+    
+    spend = _generate_linear_trend_pattern(
+        n_periods=n_periods,
+        base_spend=base_spend,
+        spend_trend=0,
+        spend_volatility=spend_volatility,
+        seed=seed
+    )
+
+    # Ramp up period
+    if ramp_up_periods > 0:
+        ramp_end = min(start_period + ramp_up_periods, n_periods, end_period)
+        ramp_periods = ramp_end - start_period
+        
+        ramp_factor = np.linspace(0, 1, ramp_periods)
+        spend[:start_period] = 0
+        spend[start_period:ramp_end] *= ramp_factor
+    
+    return spend.astype(float)
+
+
+def _generate_on_off_pattern(
+    n_periods: int,
+    base_spend: float,
+    activation_probability: float,
+    min_active_periods: int,
+    max_active_periods: int,
+    spend_volatility: float,
+    seed: Optional[int] = None
+) -> np.ndarray:
+    """
+    Generate on/off channel pattern with random activation.
+    
+    Parameters
+    ----------
+    n_periods : int
+        Number of time periods
+    base_spend : float
+        Base spend level when active
+    activation_probability : float
+        Probability of being active in any period
+    min_active_periods : int
+        Minimum consecutive active periods
+    max_active_periods : int
+        Maximum consecutive active periods
+    spend_volatility : float
+        Coefficient of variation for spend noise
+    seed : int, optional
+        Random seed for reproducibility
+        
+    Returns
+    -------
+    np.ndarray
+        Spend values for each time period
+    """
+    if seed is not None:
+        rng = np.random.default_rng(seed)
+    else:
+        rng = np.random.default_rng()
+    
+    spend = np.zeros(n_periods, dtype=float)
+    current_period = 0
+    
+    while current_period < n_periods:
+        # Decide if this should be an active period
+        if rng.random() < activation_probability:
+            # Determine how long this active period should last
+            active_duration = int(rng.integers(min_active_periods, max_active_periods + 1))
+            active_end = min(current_period + active_duration, n_periods)
+            
+            # Set spend for active periods
+            spend[current_period:active_end] = base_spend
+            # Ensure at least one period of inactivity between active periods
+            current_period = active_end + 1
+        else:
+            # Inactive period
+            current_period += 1
+    
+    # Add noise with specified volatility (only to active periods)
+    noise_std = base_spend * spend_volatility
+    noise = rng.normal(0, noise_std, n_periods)
+    
+    # Apply noise only to periods with spend > 0
+    spend = np.where(spend > 0, spend + noise, spend)
+    spend = np.clip(spend, 0, None)
+    
+    return spend.astype(float)
+
+
+def generate_channel_spend(
+    channel: ChannelConfig,
+    time_index: pd.DatetimeIndex,
+    seed: Optional[int] = None
+) -> np.ndarray:
+    """
+    Generate spend pattern for a single channel.
+    
+    Parameters
+    ----------
+    channel : ChannelConfig
+        Channel configuration
+    time_index : pd.DatetimeIndex
+        Time index for the data
+    seed : int, optional
+        Random seed
+        
+    Returns
+    -------
+    np.ndarray
+        Spend values for each time period
+    """
+    
+    n_periods = len(time_index)
+    
+    if channel.pattern == "linear_trend":
+        return _generate_linear_trend_pattern(
+            n_periods=n_periods,
+            base_spend=channel.base_spend,
+            spend_trend=channel.spend_trend,
+            spend_volatility=channel.spend_volatility,
+            seed=seed
+        )
+    
+    elif channel.pattern == "seasonal":
+        return _generate_seasonal_pattern(
+            time_index=time_index,
+            base_spend=channel.base_spend,
+            seasonal_amplitude=channel.seasonal_amplitude,
+            seasonal_phase=channel.seasonal_phase,
+            spend_volatility=channel.spend_volatility,
+            seed=seed
+        )
+    
+    elif channel.pattern == "delayed_start":
+        return _generate_delayed_start_pattern(
+            n_periods=n_periods,
+            base_spend=channel.base_spend,
+            start_period=channel.start_period or 0,
+            end_period=channel.end_period or n_periods,
+            ramp_up_periods=channel.ramp_up_periods,
+            spend_volatility=channel.spend_volatility,
+            seed=seed
+        )
+    
+    elif channel.pattern == "on_off":
+        return _generate_on_off_pattern(
+            n_periods=n_periods,
+            base_spend=channel.base_spend,
+            activation_probability=channel.activation_probability,
+            min_active_periods=channel.min_active_periods,
+            max_active_periods=channel.max_active_periods,
+            spend_volatility=channel.spend_volatility,
+            seed=seed
+        )
+    
+    elif channel.pattern == "custom":
+        if channel.custom_pattern_func is None:
+            raise ValueError("custom_pattern_func must be provided for custom pattern")
+        return channel.custom_pattern_func(channel, time_index, seed)
+    
+    else:
+        raise ValueError(f"Unknown channel pattern: {channel.pattern}")
+
+
+def generate_control_variable(
+    control: ControlConfig,
+    time_index: pd.DatetimeIndex,
+    seed: Optional[int] = None
+) -> np.ndarray:
+    """
+    Generate effect pattern for a single control variable.
+    
+    Parameters
+    ----------
+    control : ControlConfig
+        Control variable configuration
+    time_index : pd.DatetimeIndex
+        Time index for the data
+    seed : int, optional
+        Random seed for reproducibility
+        
+    Returns
+    -------
+    np.ndarray
+        Control effect values for each time period
+    """
+    return generate_channel_spend(
+        channel=control,
+        time_index=time_index,
+        seed=seed
+    )

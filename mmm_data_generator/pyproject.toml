@@ -3,43 +3,31 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mmm-param-recovery"
+name = "mmm-data-generator"
 version = "0.1.0"
-description = "A comprehensive package for benchmarking MMM (Media Mix Modeling) parameter recovery with multiple samplers and evaluation metrics"
+description = "A lightweight package for generating synthetic MMM (Media Mix Modeling) datasets with known ground truth parameters"
 authors = [{name = "PyMC Labs", email = "info@pymc-labs.com"}]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
-keywords = ["marketing-mix-modeling", "mmm", "benchmarking", "parameter-recovery", "bayesian-inference", "pymc", "numpyro", "meridian"]
+keywords = ["marketing-mix-modeling", "mmm", "synthetic-data", "parameter-recovery", "benchmarking"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
 ]
 
 dependencies = [
-    "mmm-data-generator>=0.1.0",
-    "google-meridian>=1.1.6,<2",
-    "pymc>=5.25.1,<6",
-    "pymc-marketing>=0.16.0,<0.17",
-    "numpyro>=0.19.0,<0.20",
-    "nutpie>=0.15.2,<0.16",
-    "tensorflow>=2.15.0",
-    "tensorflow-probability>=0.24.0",
-    "arviz>=0.18.0",
-    "xarray>=2023.1.0",
-    "pandas>=2.0.0",
     "numpy>=1.24.0",
+    "pandas>=2.0.0",
     "matplotlib>=3.7.0",
     "seaborn>=0.12.0",
-    "statsmodels>=0.14.0",
-    "pympler>=0.9",
-    "rich>=13.0.0",
-    "memory-profiler>=0.61.0,<0.62",
-    "great-tables>=0.18.0,<0.19",
+    "pymc-marketing>=0.16.0,<0.17",
 ]
 
 [project.optional-dependencies]
@@ -47,26 +35,33 @@ dev = [
     "pytest>=7.0.0",
     "ruff>=0.1.0",
     "pre-commit>=3.0.0",
-    "jupyterlab>=4.0.0",
-    "ipykernel>=6.0.0",
-    "jupytext>=1.16.0",
 ]
 
 [project.urls]
 Homepage = "https://github.com/pymc-labs/mmm-param-recovery"
-Documentation = "https://github.com/pymc-labs/mmm-param-recovery"
+Documentation = "https://github.com/pymc-labs/mmm-param-recovery/tree/main/packages/mmm-data-generator"
 Repository = "https://github.com/pymc-labs/mmm-param-recovery"
 Issues = "https://github.com/pymc-labs/mmm-param-recovery/issues"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["mmm_data_generator*", "mmm_param_recovery*"]
+where = ["src"]
+include = ["mmm_data_generator*"]
 
+[tool.setuptools.package-data]
+mmm_data_generator = ["py.typed"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["../../tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short" 
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = ["E501"]  # Line too long (handled by formatter)
 
