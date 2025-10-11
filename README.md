@@ -1,12 +1,58 @@
-# PyMC-Marketing vs. Meridian
-This repository provides an open-source benchmark for comparing two libraries using synthetically generated data that is representative of real world marketing patterns. The evaluation covers four key categories:
+# MMM Parameter Recovery
 
-- Contribution recovery
-- Predictive accuracy (in-sample)
-- Sampling efficiency (ESS/s)
-- RAM footprint during sampling and in the final fitted model
+This repository provides a comprehensive benchmarking suite for Marketing Mix Modeling (MMM) parameter recovery studies. It includes both lightweight data generation tools and full benchmarking capabilities for comparing different Bayesian inference methods.
 
-The repository includes both the code for generating synthetic data—designed to mimic real marketing performance and the scripts for running the benchmark evaluations.
+## Package Structure
+
+This repository contains two separate packages:
+
+### 🎯 mmm-data-generator
+**Lightweight package for synthetic MMM data generation**
+- Minimal dependencies (numpy, pandas, matplotlib, seaborn, pymc-marketing)
+- Configurable channel patterns, geographic variations, and transformations
+- Ground truth parameters for model validation
+- Perfect for standalone data generation in other projects
+
+**Installation:**
+```bash
+pip install mmm-data-generator
+```
+
+### 🔬 mmm-param-recovery  
+**Full benchmarking suite for MMM parameter recovery**
+- Comprehensive evaluation of PyMC, NumPyro, and Meridian samplers
+- Bayesian metrics, convergence diagnostics, and performance benchmarks
+- Rich visualizations and automated benchmarking workflows
+- Includes all heavy dependencies for complete MMM analysis
+
+**Installation:**
+```bash
+pip install mmm-param-recovery
+```
+
+## Quick Start
+
+### Data Generation Only
+```python
+from mmm_data_generator import generate_mmm_dataset, get_preset_config
+
+# Generate synthetic MMM data
+config = get_preset_config('small_business')
+data = generate_mmm_dataset(config=config)
+```
+
+### Full Benchmarking
+```python
+from mmm_param_recovery.benchmarking import run_benchmark
+from mmm_data_generator import get_preset_config
+
+# Run comprehensive benchmark
+config = get_preset_config('small_business')
+results = run_benchmark(
+    dataset_config=config,
+    samplers=['pymc_nuts', 'numpyro', 'meridian']
+)
+```
 
 > **Note**  
 > A summary of the results of this benchmark has been published in this [blog post](https://www.pymc-labs.com/blog-posts/pymc-marketing-vs-google-meridian).

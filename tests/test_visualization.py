@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from datetime import datetime, timedelta
 
-from mmm_param_recovery.data_generator.visualization import (
+from mmm_data_generator.visualization import (
     plot_channel_spend,
     plot_channel_contributions,
     plot_roas_comparison,

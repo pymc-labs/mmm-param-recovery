@@ -6,14 +6,14 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from mmm_param_recovery.data_generator.config import (
+from mmm_data_generator.config import (
     MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
 )
-from mmm_param_recovery.data_generator.ground_truth import (
+from mmm_data_generator.ground_truth import (
     calculate_roas_values,
     calculate_attribution_percentages
 )
-from mmm_param_recovery.data_generator.validation import (
+from mmm_data_generator.validation import (
     validate_ground_truth,
     _validate_transformation_parameters,
     _validate_baseline_components,

@@ -6,7 +6,7 @@ Comprehensive test script to check the default configuration output schema and c
 import pandas as pd
 from typing import Dict, Any
 
-from mmm_param_recovery.data_generator import generate_mmm_dataset, DEFAULT_CONFIG
+from mmm_data_generator import generate_mmm_dataset, DEFAULT_CONFIG
 
 def test_default_config():
     """Test the default configuration output schema and control variables."""

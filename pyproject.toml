@@ -3,30 +3,33 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mmm-param-recovery"
+name = "mmm-param-recovery-workspace"
 version = "0.1.0"
-description = "A package for generating synthetic MMM (Media Mix Modeling) datasets for parameter recovery studies"
-authors = [{name = "Thomas Wiecki", email = "thomas.wiecki@gmail.com"}]
+description = "Workspace for MMM parameter recovery packages"
+authors = [{name = "PyMC Labs", email = "info@pymc-labs.com"}]
 requires-python = ">=3.12"
-dependencies = ["google-meridian>=1.1.6,<2"]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
     "ruff",
     "pre-commit",
+    "jupyterlab",
+    "ipykernel",
+    "jupytext",
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["mmm_param_recovery*"]
+where = ["packages"]
+include = ["mmm_data_generator*", "mmm_param_recovery*"]
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64"]
 
 [tool.pixi.pypi-dependencies]
-mmm-param-recovery = { path = ".", editable = true }
+mmm-data-generator = { path = "packages/mmm-data-generator", editable = true }
+mmm-param-recovery = { path = "packages/mmm-param-recovery", editable = true }
 
 [tool.pixi.dependencies]
 pytest = "*"
@@ -44,14 +47,13 @@ tensorflow-probability = "*"
 xarray = "*"
 pympler = "*"
 statsmodels = "*"
-numpyro = "*"
-nutpie = "*"
 ipywidgets = ">=8.1.7,<9"
 memory_profiler = ">=0.61.0,<0.62"
-pymc = "==5.24.1"
-pymc-marketing = ">=0.15.1,<0.16"
-blackjax = ">=1.2.4,<2"
 great_tables = ">=0.18.0,<0.19"
+pymc-marketing = ">=0.16.0,<0.17"
+pymc = ">=5.25.1,<6"
+numpyro = ">=0.19.0,<0.20"
+nutpie = ">=0.15.2,<0.16"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -4,11 +4,11 @@ Unit tests for adstock and saturation transformations.
 
 import pytest
 import numpy as np
-from mmm_param_recovery.data_generator.transforms import (
+from mmm_data_generator.transforms import (
     apply_transformations,
 )
-from mmm_param_recovery.data_generator.config import TransformConfig, ChannelConfig
-from mmm_param_recovery.data_generator.transforms import apply_transform
+from mmm_data_generator.config import TransformConfig, ChannelConfig
+from mmm_data_generator.transforms import apply_transform
 from pymc_marketing.mmm import transformers
 
 
