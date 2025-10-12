@@ -9,7 +9,7 @@ description = "A comprehensive package for benchmarking MMM (Media Mix Modeling)
 authors = [{name = "PyMC Labs", email = "info@pymc-labs.com"}]
 readme = "README.md"
 requires-python = ">=3.12"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 keywords = ["marketing-mix-modeling", "mmm", "benchmarking", "parameter-recovery", "bayesian-inference", "pymc", "numpyro", "meridian"]
 classifiers = [
     "Development Status :: 4 - Beta",
