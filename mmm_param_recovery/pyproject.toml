@@ -14,7 +14,6 @@ keywords = ["marketing-mix-modeling", "mmm", "benchmarking", "parameter-recovery
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
@@ -59,7 +58,7 @@ Repository = "https://github.com/pymc-labs/mmm-param-recovery"
 Issues = "https://github.com/pymc-labs/mmm-param-recovery/issues"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 include = ["mmm_param_recovery*"]
 
 [tool.setuptools.package-data]
