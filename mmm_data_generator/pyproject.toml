@@ -9,7 +9,7 @@ description = "A lightweight package for generating synthetic MMM (Media Mix Mod
 authors = [{name = "PyMC Labs", email = "info@pymc-labs.com"}]
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 keywords = ["marketing-mix-modeling", "mmm", "synthetic-data", "parameter-recovery", "benchmarking"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -44,7 +44,7 @@ Repository = "https://github.com/pymc-labs/mmm-param-recovery"
 Issues = "https://github.com/pymc-labs/mmm-param-recovery/issues"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 include = ["mmm_data_generator*"]
 
 [tool.setuptools.package-data]
