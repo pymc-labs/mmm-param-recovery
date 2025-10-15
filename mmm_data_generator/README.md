@@ -71,7 +71,8 @@ The MMM Dataset Generator creates synthetic marketing data with configurable cha
 ## Installation
 
 ```bash
-pip install mmm-data-generator
+# Install from local source (package not yet on PyPI)
+pip install -e .
 ```
 
 ### Dependencies
@@ -310,6 +311,7 @@ The package includes several pre-configured presets for common MMM scenarios:
 - **`small_business`**: Small business with limited budget and channels
 - **`medium_business`**: Medium business with more budget and channels
 - **`large_business`**: Large business with many channels and regions
+- **`growing_business`**: Growing business with increasing spend patterns
 
 ```python
 from mmm_data_generator import get_preset_config, list_available_presets
@@ -374,6 +376,7 @@ The `mmm_data_generator` package is organized into several modules:
 - **`visualization.py`**: Plotting and visualization functions
 - **`validation.py`**: Data validation and quality checks
 - **`utils.py`**: Utility functions and seed management
+- **`pyproject.toml`**: Package configuration and dependencies
 
 ## API Reference
 
