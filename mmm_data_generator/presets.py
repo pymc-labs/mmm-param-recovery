@@ -654,6 +654,7 @@ def list_available_presets() -> Dict[str, str]:
         'small_business': 'Small business with limited budget and channels',
         'medium_business': 'Medium business with more budget and channels',
         'large_business': 'Large business with many channels and regions',
+        'growing_business': 'Growing business with increasing spend patterns',
         }
 
 
