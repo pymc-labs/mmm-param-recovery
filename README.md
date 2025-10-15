@@ -15,7 +15,8 @@ This repository contains two separate packages:
 
 **Installation:**
 ```bash
-pip install mmm-data-generator
+# Install from local source (packages not yet on PyPI)
+pip install -e ./mmm_data_generator
 ```
 
 ### 🔬 mmm-param-recovery  
@@ -27,10 +28,21 @@ pip install mmm-data-generator
 
 **Installation:**
 ```bash
-pip install mmm-param-recovery
+# Install from local source (packages not yet on PyPI)
+pip install -e ./mmm_param_recovery
 ```
 
 ## Quick Start
+
+### Environment Setup
+
+When working with GCP instances with preinstalled Jupyter Lab,
+we have found Conda to be the easiest method.
+
+```shell
+conda env create -f cpu-environment.yaml
+conda activate python312-cpu
+```
 
 ### Data Generation Only
 ```python
@@ -56,10 +68,6 @@ results = run_benchmark(
 
 > **Note**  
 > A summary of the results of this benchmark has been published in this [blog post](https://www.pymc-labs.com/blog-posts/pymc-marketing-vs-google-meridian).
-
-## Quick Start
-
-### Environment Setup
 
 When working with GCP instances with preinstalled Jupyter Lab,
 we have found Conda to be the easiest method.
@@ -105,7 +113,9 @@ python run_benchmark.py --datasets small_business --plots-only
 - `--target-accept`: Target acceptance probability (default: 0.9)
 - `--seed`: Random seed for reproducibility
 - `--force-rerun`: Force re-run even if cached results exist
+- `--no-force-rerun`: Use cached results (default behavior)
 - `--plots-only`: Generate only plots from existing models
+- `--bayesian-metrics`: Include Bayesian evaluation metrics
 
 #### Output Structure
 
@@ -118,8 +128,9 @@ data/results/
 │   ├── pymc_{sampler}_model.nc     # PyMC models per sampler
 │   ├── pymc_{sampler}_stats.pkl    # PyMC stats per sampler
 │   └── plots/                      
-│       ├── posterior_predictive_meridian.html
-│       └── posterior_predictive_pymc_{sampler}.png
+│       ├── posterior_predictive_meridian.png
+│       ├── posterior_predictive_pymc_{sampler}.png
+│       └── model_comparison.png    # Combined comparison plot
 └── summary/
     ├── runtime_comparison.csv       # Runtime comparison table
     ├── ess_comparison.csv          # ESS metrics table
