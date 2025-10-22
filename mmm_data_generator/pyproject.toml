@@ -26,7 +26,7 @@ dependencies = [
     "pandas>=2.0.0",
     "matplotlib>=3.7.0",
     "seaborn>=0.12.0",
-    "pymc-marketing>=0.16.0,<0.17",
+    "pymc-marketing>=0.17.0,<0.18",
 ]
 
 [project.optional-dependencies]
