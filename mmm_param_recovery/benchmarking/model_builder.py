@@ -126,7 +126,7 @@ def build_meridian_prior(
     beta_m_mu, beta_m_sigma = zip(*beta_m)
     
     return prior_distribution.PriorDistribution(
-        beta_m=tfp.distributions.Normal(
+        beta_m=tfp.distributions.LogNormal(
             beta_m_mu, beta_m_sigma, name=constants.BETA_M
         ),
         # Set alpha_m to Beta(1, 3) to match PyMC-Marketing's fast decay prior
@@ -157,7 +157,6 @@ def build_meridian_model_spec(
     """
     return spec.ModelSpec(
         prior=prior,
-        media_effects_dist='normal',
         hill_before_adstock=False,
         max_lag=8,
         unique_sigma_for_each_geo=True,
