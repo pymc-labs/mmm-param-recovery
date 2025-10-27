@@ -1,0 +1,40 @@
+[project]
+name = "mmm-param-recovery-workspace"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[dependencies]
+pytest = "*"
+ipykernel = "*"
+jax = ">0.4.0, <0.5.0"
+jupytext = "*"
+jupyterlab = "*"
+arviz = "*"
+matplotlib = "*"
+numpy = "*"
+pandas = "*"
+seaborn = "*"
+tensorflow = "*"
+tensorflow-probability = "*"
+xarray = "*"
+pympler = "*"
+statsmodels = "*"
+ipywidgets = ">=8.1.7,<9"
+memory_profiler = ">=0.61.0,<0.62"
+great_tables = ">=0.18.0,<0.19"
+pymc-marketing = ">=0.16.0,<0.17"
+pymc = ">=5.25.1,<6"
+numpyro = ">=0.19.0,<0.20"
+nutpie = ">=0.15.2,<0.16"
+rich = "*"
+blackjax = ">=1.2.4,<2"
+
+[pypi-dependencies]
+mmm-data-generator = { path = "mmm_data_generator", editable = true }
+mmm-param-recovery = { path = "mmm_param_recovery", editable = true }
+google-meridian = ">=1.1.6, <2"
+
+[tasks]
+test = "pytest tests/"
+lint = "ruff check mmm_data_generator/ mmm_param_recovery/"
+format = "ruff format mmm_data_generator/ mmm_param_recovery/"

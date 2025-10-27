@@ -4,12 +4,12 @@ Test script to verify that all presets pass schema validation.
 """
 
 import pandas as pd
-from mmm_param_recovery.data_generator.presets import (
+from mmm_data_generator.presets import (
     get_preset_config, 
     list_available_presets, 
     customize_preset
 )
-from mmm_param_recovery.data_generator.config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
+from mmm_data_generator.config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig
 
 
 def test_all_presets_pass_validation():
@@ -83,7 +83,7 @@ def test_preset_data_generation():
     print("Testing data generation for all presets...")
     
     # Import here to avoid circular imports
-    from mmm_param_recovery.data_generator import generate_mmm_dataset
+    from mmm_data_generator import generate_mmm_dataset
     
     for preset_name in available_presets.keys():
         try:

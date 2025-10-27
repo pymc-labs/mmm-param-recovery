@@ -17,36 +17,71 @@ This repository benchmarks PyMC-Marketing and Google Meridian for Media Mix Mode
 Modular components for model comparison:
 
 - **data_loader.py**: Load and prepare datasets
-  - `load_multiple_datasets(dataset_names, seed)`
+  - `load_or_generate_dataset(dataset_name, seed)` - Load or generate dataset
+  - `prepare_dataset_for_modeling(data, config)` - Prepare data for modeling
+  - `load_multiple_datasets(dataset_names, seed)` - Load multiple datasets
   - Returns list of tuples: (data_df, channel_columns, control_columns, truth_df)
 
 - **model_builder.py**: Construct models for both libraries
   - `build_meridian_model(data_df, channel_columns, control_columns)` 
   - `build_pymc_model(data_df, channel_columns, control_columns)`
   - `calculate_prior_sigma(data_df, channel_columns)` - Compute priors based on spend shares
+  - `build_meridian_data(data_df, channel_columns, control_columns)` - Build Meridian input data
+  - `build_meridian_prior(channel_columns, prior_sigma)` - Build Meridian priors
+  - `build_pymc_saturation(prior_sigma)` - Build PyMC saturation component
 
 - **model_fitter.py**: Fit models with different samplers (builds fresh models internally)
   - `fit_meridian(data_df, channel_columns, control_columns, n_chains, n_draws, n_tune, target_accept, seed)`
   - `fit_pymc(data_df, channel_columns, control_columns, sampler, n_chains, n_draws, n_tune, target_accept, seed)`
+  - `should_skip_sampler(sampler, dataset_name)` - Check if sampler should be skipped
   - Both build fresh models from scratch to include compilation time
   - Returns: (fitted_model, runtime, ess_stats)
 
 - **diagnostics.py**: Compute convergence metrics
   - `compute_ess(idata)` - Returns dict with min, q10, q50, q90 ESS values
+  - `compute_divergences(idata)` - Count divergent transitions
+  - `compute_rhat(idata)` - Compute R-hat statistics
+  - `compute_model_size_mb(dataset_name, library, sampler)` - Calculate model size
   - `create_diagnostics_summary(results, dataset_name)` - Returns DataFrame
 
 - **evaluation.py**: Performance metrics
   - `evaluate_meridian_fit(meridian_model, data_df)` 
   - `evaluate_pymc_fit(pymc_model, data_df, sampler)`
+  - `create_performance_summary(results, dataset_name)` - Create performance summary
+  - `extract_meridian_channel_contributions(meridian_model, data_df)` - Extract channel contributions
+  - `extract_pymc_channel_contributions(pymc_model, data_df)` - Extract channel contributions
+  - `evaluate_channel_contributions(ground_truth, model_contributions)` - Evaluate channel performance
   - Returns list of dicts with R², MAPE, Durbin-Watson per geo
+
+- **bayesian_evaluation.py**: Advanced Bayesian metrics
+  - `extract_meridian_posterior_contributions(meridian_model)` - Extract posterior contributions
+  - `extract_pymc_posterior_contributions(pymc_model)` - Extract posterior contributions
+  - `evaluate_revenue_bayesian(actual, predicted, hdi_prob)` - Bayesian revenue evaluation
+  - `evaluate_contributions_bayesian(ground_truth, model_contributions)` - Bayesian contribution evaluation
+  - `create_summary_dataframe(results)` - Create summary DataFrame
+
+- **bayesian_metrics.py**: Vectorized metric calculations
+  - `calculate_r2_vectorized(actual, predicted)` - Vectorized R² calculation
+  - `calculate_mape_vectorized(actual, predicted)` - Vectorized MAPE calculation
+  - `calculate_bias_vectorized(actual, predicted)` - Vectorized bias calculation
+  - `calculate_srmse_vectorized(actual, predicted)` - Vectorized SRMSE calculation
+  - `calculate_durbin_watson_vectorized(actual, predicted)` - Vectorized Durbin-Watson
+  - `compute_summary_stats(metric_array, hdi_prob)` - Compute summary statistics
+  - `format_metric_with_hdi(stats, precision)` - Format metrics with HDI
+
+- **parameter_counter.py**: Model parameter counting
+  - `count_pymc_parameters(model)` - Count PyMC model parameters
+  - `count_meridian_parameters(model)` - Count Meridian model parameters
+  - `categorize_parameters(parameter_counts)` - Categorize parameters by type
+  - `create_parameter_summary(results)` - Create parameter summary
 
 - **visualization.py**: Generate plots
   - `plot_meridian_posterior_predictive(model, data_df, dataset_name)`
   - `plot_pymc_posterior_predictive(model, data_df, dataset_name, sampler)`
-  - `plot_runtime_comparison(runtime_df)`
-  - `plot_ess_comparison(ess_df)`
-  - `plot_performance_metrics(performance_df)`
-  - `plot_diagnostics_summary(diagnostics_df)`
+  - `plot_model_comparison(meridian_model, pymc_model, data_df, dataset_name)` - Combined comparison
+  - `plot_channel_contribution_distributions(ground_truth, model_contributions)` - Channel distributions
+  - `plot_channel_metrics_comparison(metrics_df)` - Channel metrics comparison
+  - `setup_plot_style()` - Configure plotting style
 
 - **storage.py**: Model persistence
   - `save_meridian_model(model, dataset_name, runtime, ess)`
@@ -54,6 +89,9 @@ Modular components for model comparison:
   - `load_meridian_model(dataset_name)` - Returns (model, runtime, ess)
   - `load_pymc_model(dataset_name, sampler)` - Returns (model, runtime, ess)
   - `model_exists(dataset_name, library, sampler=None)` - Returns bool
+  - `save_summary_dataframe(df, name)` - Save summary DataFrames
+  - `save_dataset(dataset_result, dataset_name)` - Save dataset
+  - `load_dataset(dataset_name)` - Load dataset
 
 ## Code Organization
 
@@ -62,7 +100,7 @@ Modular components for model comparison:
 The `data_generator` module follows a functional, layered architecture:
 
 ```
-mmm_param_recovery/data_generator/
+mmm_data_generator/
 ├── __init__.py          # Public API exports
 ├── core.py              # Main orchestration logic
 ├── config.py            # Configuration dataclasses
@@ -73,7 +111,8 @@ mmm_param_recovery/data_generator/
 ├── presets.py           # Business preset configurations
 ├── validation.py        # Input/output validation
 ├── visualization.py     # Plotting utilities
-└── utils.py            # Helper functions (seed management)
+├── utils.py            # Helper functions (seed management)
+└── pyproject.toml       # Package configuration
 ```
 
 **Key Design Patterns:**
@@ -88,14 +127,17 @@ The `benchmarking` module implements a pipeline pattern:
 
 ```
 mmm_param_recovery/benchmarking/
-├── __init__.py          # Module exports
-├── data_loader.py       # Dataset loading and preparation
-├── model_builder.py     # Model construction for both libraries
-├── model_fitter.py      # Sampling/fitting logic
-├── diagnostics.py       # Convergence metrics
-├── evaluation.py        # Performance metrics
-├── visualization.py     # Plotting functions
-└── storage.py          # Model persistence
+├── __init__.py              # Module exports
+├── data_loader.py           # Dataset loading and preparation
+├── model_builder.py         # Model construction for both libraries
+├── model_fitter.py          # Sampling/fitting logic
+├── diagnostics.py           # Convergence metrics
+├── evaluation.py            # Performance metrics
+├── bayesian_evaluation.py   # Advanced Bayesian evaluation
+├── bayesian_metrics.py      # Vectorized metric calculations
+├── parameter_counter.py     # Model parameter counting
+├── visualization.py         # Plotting functions
+└── storage.py              # Model persistence
 ```
 
 **Key Design Patterns:**
@@ -106,22 +148,24 @@ mmm_param_recovery/benchmarking/
 
 ### Data Flow
 
-1. **Generation Phase** (`data_generator`):
+1. **Generation Phase** (`mmm_data_generator`):
    ```
    config → channels.generate_channel_spend()
           → regions.generate_regional_variations() 
           → transforms.apply_transformations()
           → ground_truth.calculate_metrics()
+          → validation.validate_output()
           → validated output
    ```
 
-2. **Benchmarking Phase** (`benchmarking`):
+2. **Benchmarking Phase** (`mmm_param_recovery.benchmarking`):
    ```
-   dataset → data_loader.load_dataset()
+   dataset → data_loader.load_or_generate_dataset()
            → model_builder.build_[library]_model()
            → model_fitter.fit_[library]()
            → diagnostics.compute_metrics()
            → evaluation.evaluate_fit()
+           → bayesian_evaluation.evaluate_bayesian()
            → visualization.create_plots()
            → storage.save_results()
    ```
@@ -139,6 +183,10 @@ mmm_param_recovery/benchmarking/
   - `fit_*` - Run sampling
   - `compute_*` - Calculate metrics
   - `evaluate_*` - Assess performance
+  - `extract_*` - Extract data from models
+  - `calculate_*` - Calculate specific metrics
+  - `create_*` - Create summary objects
+  - `count_*` - Count parameters/objects
   - `save_*/load_*` - Persistence operations
   - `plot_*` - Create visualizations
 

@@ -21,7 +21,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich import box
-from mmm_param_recovery.data_generator import generate_mmm_dataset, get_preset_config
+from mmm_data_generator import generate_mmm_dataset, get_preset_config
 from . import storage
 
 

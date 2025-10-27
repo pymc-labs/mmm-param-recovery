@@ -7,8 +7,8 @@ Combines validation, compliance checks, and detailed reporting.
 import pandas as pd
 from typing import Dict, Any
 
-from mmm_param_recovery.data_generator import generate_mmm_dataset
-from mmm_param_recovery.data_generator.config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig, ControlConfig
+from mmm_data_generator import generate_mmm_dataset
+from mmm_data_generator.config import MMMDataConfig, ChannelConfig, RegionConfig, TransformConfig, ControlConfig
 
 
 def test_mmm_schema():
