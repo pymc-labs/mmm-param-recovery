@@ -206,21 +206,34 @@ def build_pymc_saturation(prior_sigma: np.ndarray) -> HillSaturationSigmoid:
     Parameters
     ----------
     prior_sigma : np.ndarray
-        Prior sigma values
+        Prior sigma values (shape: n_geos x n_channels)
         
     Returns
     -------
     HillSaturationSigmoid
         Saturation transformation object
     """
-    return HillSaturationSigmoid(
-        priors={
-            "sigma": Prior(
+    n_geos = prior_sigma.shape[0]
+    
+    # For single geo models, sigma only has channel dimension
+    # For multi-geo models, sigma has both channel and geo dimensions
+    if n_geos == 1:
+        sigma_prior = Prior(
+            "HalfNormal",
+            sigma=prior_sigma,
+            dims=("channel",)
+        )
+    else:
+        sigma_prior = Prior(
                 "InverseGamma",
                 mu=Prior("HalfNormal", sigma=prior_sigma.mean(axis=0), dims=("channel",)),
-                sigma=Prior("HalfNormal", sigma=1.5),
-                dims=("channel", "geo")
-            ),
+                sigma=Prior("HalfNormal", sigma=1, dims=("channel", )),
+                dims=("geo", "channel",)
+            )
+    
+    return HillSaturationSigmoid(
+        priors={
+            "sigma": sigma_prior,
             "beta": Prior("HalfNormal", sigma=1.5, dims=("channel",)),
             "lam": Prior("HalfNormal", sigma=1.5, dims=("channel",)),
         },
