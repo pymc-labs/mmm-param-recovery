@@ -19,6 +19,7 @@ from . import model_builder
 from . import model_fitter
 from . import diagnostics
 from . import evaluation
+from . import bayesian_evaluation
 from . import visualization
 from . import storage
 from . import parameter_counter
@@ -29,6 +30,7 @@ __all__ = [
     "model_fitter",
     "diagnostics",
     "evaluation",
+    "bayesian_evaluation",
     "visualization",
     "storage",
     "parameter_counter",

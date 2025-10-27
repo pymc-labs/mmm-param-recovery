@@ -195,6 +195,9 @@ def evaluate_revenue_bayesian(
         srmse_values = bayesian_metrics.calculate_srmse_vectorized(actual, predicted)
         dw_values = bayesian_metrics.calculate_durbin_watson_vectorized(actual, predicted)
         
+        # Calculate CRPS - returns shape (n_times,)
+        crps_values = bayesian_metrics.calculate_crps_vectorized(actual, predicted)
+        
         # Also calculate MAPE on posterior mean (traditional approach)
         # This matches how traditional metrics are calculated
         posterior_mean = np.mean(predicted, axis=0)
@@ -202,13 +205,15 @@ def evaluate_revenue_bayesian(
         mape_posterior_mean = evaluation.calculate_mape(actual, posterior_mean)
         
         # Compute summary statistics
+        # Note: CRPS returns (n_times,) so we compute stats across time points
         results[geo] = {
             'R²': bayesian_metrics.compute_summary_stats(r2_values),
             'MAPE (%)': bayesian_metrics.compute_summary_stats(mape_values),
             'MAPE_posterior_mean (%)': mape_posterior_mean,  # Traditional-style MAPE
             'Bias': bayesian_metrics.compute_summary_stats(bias_values),
             'SRMSE': bayesian_metrics.compute_summary_stats(srmse_values),
-            'Durbin-Watson': bayesian_metrics.compute_summary_stats(dw_values)
+            'Durbin-Watson': bayesian_metrics.compute_summary_stats(dw_values),
+            'CRPS': bayesian_metrics.compute_summary_stats(crps_values)
         }
     
     return results
@@ -286,12 +291,16 @@ def evaluate_contributions_bayesian(
             bias_values = bayesian_metrics.calculate_bias_vectorized(actual, predicted)
             srmse_values = bayesian_metrics.calculate_srmse_vectorized(actual, predicted)
             
+            # Calculate CRPS - returns shape (n_times,)
+            crps_values = bayesian_metrics.calculate_crps_vectorized(actual, predicted)
+            
             # Store detailed results
             detailed_results[(geo, channel)] = {
                 'R²': bayesian_metrics.compute_summary_stats(r2_values),
                 'MAPE (%)': bayesian_metrics.compute_summary_stats(mape_values),
                 'Bias': bayesian_metrics.compute_summary_stats(bias_values),
-                'SRMSE': bayesian_metrics.compute_summary_stats(srmse_values)
+                'SRMSE': bayesian_metrics.compute_summary_stats(srmse_values),
+                'CRPS': bayesian_metrics.compute_summary_stats(crps_values)
             }
             
             # Collect for aggregation
@@ -299,6 +308,7 @@ def evaluate_contributions_bayesian(
             all_metric_arrays['MAPE (%)'].extend(mape_values)
             all_metric_arrays['Bias'].extend(bias_values)
             all_metric_arrays['SRMSE'].extend(srmse_values)
+            all_metric_arrays['CRPS'].extend(crps_values)
     
     # Compute aggregated statistics
     aggregated_results = {}
