@@ -66,6 +66,7 @@ Modular components for model comparison:
   - `calculate_bias_vectorized(actual, predicted)` - Vectorized bias calculation
   - `calculate_srmse_vectorized(actual, predicted)` - Vectorized SRMSE calculation
   - `calculate_durbin_watson_vectorized(actual, predicted)` - Vectorized Durbin-Watson
+  - `calculate_crps_vectorized(actual, predicted)` - Vectorized CRPS calculation
   - `compute_summary_stats(metric_array, hdi_prob)` - Compute summary statistics
   - `format_metric_with_hdi(stats, precision)` - Format metrics with HDI
 
