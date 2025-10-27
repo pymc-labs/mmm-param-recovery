@@ -220,7 +220,7 @@ def build_pymc_saturation(prior_sigma: np.ndarray) -> HillSaturationSigmoid:
     if n_geos == 1:
         sigma_prior = Prior(
             "HalfNormal",
-            sigma=prior_sigma,
+            sigma=prior_sigma.mean(axis=0),
             dims=("channel",)
         )
     else:
