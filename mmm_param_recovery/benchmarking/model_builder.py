@@ -107,28 +107,29 @@ def build_meridian_prior(
     channel_columns : List[str]
         List of channel column names
     prior_sigma : np.ndarray
-        Prior sigma values
+        Prior sigma values (unused - using default priors)
         
     Returns
     -------
     prior_distribution.PriorDistribution
         Meridian prior distribution
     """
-    build_media_channel_args = built_data.get_paid_media_channels_argument_builder()
+    # Commented out: spend_share based priors
+    # build_media_channel_args = built_data.get_paid_media_channels_argument_builder()
+    # beta_m = build_media_channel_args(
+    #     **{
+    #         col: (0, float(prior_sigma.mean(axis=0)[i]))
+    #         for i, col in enumerate(channel_columns)
+    #     }
+    # )
+    # beta_m_mu, beta_m_sigma = zip(*beta_m)
     
-    beta_m = build_media_channel_args(
-        **{
-            col: (0, float(prior_sigma.mean(axis=0)[i]))
-            for i, col in enumerate(channel_columns)
-        }
-    )
-    
-    beta_m_mu, beta_m_sigma = zip(*beta_m)
-    
+    # Using Meridian's default beta_m prior
     return prior_distribution.PriorDistribution(
-        beta_m=tfp.distributions.LogNormal(
-            beta_m_mu, beta_m_sigma, name=constants.BETA_M
-        ),
+        # Commented out: custom beta_m prior - using Meridian's default instead
+        # beta_m=tfp.distributions.LogNormal(
+        #     beta_m_mu, beta_m_sigma, name=constants.BETA_M
+        # ),
         # Set alpha_m to Beta(1, 3) to match PyMC-Marketing's fast decay prior
         # This gives E[alpha] = 1/(1+3) = 0.25, favoring faster adstock decay
         alpha_m=tfp.distributions.Beta(
@@ -192,7 +193,9 @@ def build_meridian_model(
     model.Meridian
         Meridian model ready for sampling
     """
-    prior_sigma = calculate_prior_sigma(data_df, channel_columns)
+    # Commented out: spend_share based priors
+    # prior_sigma = calculate_prior_sigma(data_df, channel_columns)
+    prior_sigma = None  # Not used anymore, using default priors
     built_data = build_meridian_data(data_df, channel_columns, control_columns)
     prior = build_meridian_prior(built_data, channel_columns, prior_sigma)
     model_spec = build_meridian_model_spec(prior, len(built_data.time))
@@ -200,13 +203,13 @@ def build_meridian_model(
     return model.Meridian(input_data=built_data, model_spec=model_spec)
 
 
-def build_pymc_saturation(prior_sigma: np.ndarray) -> HillSaturationSigmoid:
+def build_pymc_saturation(n_geos: int) -> HillSaturationSigmoid:
     """Build PyMC-Marketing saturation transformation.
     
     Parameters
     ----------
-    prior_sigma : np.ndarray
-        Prior sigma values (shape: n_geos x n_channels)
+    n_geos : int
+        Number of geographic regions
         
     Returns
     -------
@@ -261,8 +264,12 @@ def build_pymc_model(
     MMM
         PyMC-Marketing model ready for fitting
     """
-    prior_sigma = calculate_prior_sigma(data_df, channel_columns)
-    saturation = build_pymc_saturation(prior_sigma)
+    # Commented out: spend_share based priors
+    # prior_sigma = calculate_prior_sigma(data_df, channel_columns)
+    
+    # Calculate number of geos from data
+    n_geos = len(data_df["geo"].unique())
+    saturation = build_pymc_saturation(n_geos)
     
     mmm = MMM(
         date_column="time",
