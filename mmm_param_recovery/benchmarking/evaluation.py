@@ -201,7 +201,7 @@ def evaluate_pymc_fit(
     """
     results = []
     
-    for geo in pymc_model.model.coords["geo"]:
+    for geo in pymc_model.idata["posterior_predictive"].coords["geo"].to_numpy():
         geo_label = "geo_a" if geo == "Local" else geo
         
         expected = pymc_model.idata["posterior_predictive"].y_original_scale.mean(

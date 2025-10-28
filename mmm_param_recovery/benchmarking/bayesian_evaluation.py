@@ -177,7 +177,7 @@ def evaluate_revenue_bayesian(
             geo_names = ['Local']
     else:  # pymc
         predictions = extract_pymc_posterior_predictions(model)
-        geo_names = model.model.coords["geo"]
+        geo_names = model.idata["posterior_predictive"].coords["geo"].to_numpy()
     
     results = {}
     
@@ -247,7 +247,7 @@ def evaluate_contributions_bayesian(
             geo_names = ['Local']
     else:  # pymc
         contributions = extract_pymc_posterior_contributions(model, channel_columns)
-        geo_names = model.model.coords["geo"]
+        geo_names = model.idata["posterior_predictive"].coords["geo"].to_numpy()
     
     # Fix truth_df index if needed
     if 'time' in truth_df.columns and 'geo' in truth_df.columns:

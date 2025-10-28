@@ -206,8 +206,8 @@ def plot_pymc_posterior_predictive(
     save : bool
         Whether to save the plot
     """
-    geos = pymc_model.model.coords["geo"]
-    dates = pymc_model.model.coords["date"]
+    geos = pymc_model.idata["posterior_predictive"].coords["geo"].to_numpy()
+    dates = pymc_model.idata["posterior_predictive"].coords["date"].to_numpy()
     
     fig, axes = plt.subplots(
         ncols=len(geos),
