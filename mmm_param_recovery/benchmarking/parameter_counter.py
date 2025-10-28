@@ -65,17 +65,20 @@ def count_pymc_parameters(model: Any) -> Dict[str, int]:
         media_response_params += posterior["saturation_lam"].shape[-1]
     
     if "saturation_sigma" in posterior:
-        # Hierarchical sigma: (channel x geo)
+        # Hierarchical sigma: (geo x channel) for multi-geo, (channel) for single geo
         shape = posterior["saturation_sigma"].shape
-        media_response_params += shape[-2] * shape[-1]  # channels * geos
+        if len(shape) == 4:  # (chain, draw, geo, channel) - multi-geo case
+            media_response_params += shape[-2] * shape[-1]  # geos * channels
+        else:  # (chain, draw, channel) - single geo case
+            media_response_params += shape[-1]  # channels only
     
     if "saturation_sigma_mu" in posterior:
         # Population mean for sigma: one per channel
         media_response_params += posterior["saturation_sigma_mu"].shape[-1]
     
     if "saturation_sigma_sigma" in posterior:
-        # Population std for sigma: single parameter
-        media_response_params += 1
+        # Population std for sigma: one per channel
+        media_response_params += posterior["saturation_sigma_sigma"].shape[-1]
     
     counts["media_response"] = media_response_params
     

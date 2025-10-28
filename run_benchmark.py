@@ -816,7 +816,7 @@ def create_summary_tables(
                     revenue_metrics = model_metrics['revenue']
                     avg_revenue_metrics = {}
                     
-                    for metric_name in ['R²', 'MAPE (%)', 'SRMSE', 'Durbin-Watson', 'Bias']:
+                    for metric_name in ['R²', 'MAPE (%)', 'SRMSE', 'Durbin-Watson', 'Bias', 'CRPS']:
                         # Collect metric values across geos
                         geo_values = []
                         for geo_metrics in revenue_metrics.values():
@@ -850,6 +850,7 @@ def create_summary_tables(
             revenue_table.add_column("R² (mean ± std) 90% HDI", justify="right")
             revenue_table.add_column("MAPE (%) Bayesian", justify="right")  # Proper Bayesian with uncertainty
             revenue_table.add_column("MAPE (%) Posterior Mean", justify="right")  # Traditional-style for comparison
+            revenue_table.add_column("CRPS (mean ± std) 90% HDI", justify="right")
             revenue_table.add_column("Durbin-Watson (mean ± std) 90% HDI", justify="right")
             
             # Sort by dataset and model for consistent display
@@ -871,7 +872,10 @@ def create_summary_tables(
                     dw_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
                         metrics.get('Durbin-Watson', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 3
                     )
-                    revenue_table.add_row(dataset_name, model_name, r2_str, mape_bayesian_str, mape_pm_str, dw_str)
+                    crps_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
+                        metrics.get('CRPS', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 3
+                    )
+                    revenue_table.add_row(dataset_name, model_name, r2_str, mape_bayesian_str, mape_pm_str, crps_str, dw_str)
             
             console.print()
             console.print(revenue_table)
@@ -890,6 +894,10 @@ def create_summary_tables(
                     'MAPE_bayesian_hdi_lower': metrics.get('MAPE (%)', {}).get('hdi_lower', np.nan),
                     'MAPE_bayesian_hdi_upper': metrics.get('MAPE (%)', {}).get('hdi_upper', np.nan),
                     'MAPE_posterior_mean': metrics.get('MAPE_posterior_mean (%)', np.nan),
+                    'CRPS_mean': metrics.get('CRPS', {}).get('mean', np.nan),
+                    'CRPS_std': metrics.get('CRPS', {}).get('std', np.nan),
+                    'CRPS_hdi_lower': metrics.get('CRPS', {}).get('hdi_lower', np.nan),
+                    'CRPS_hdi_upper': metrics.get('CRPS', {}).get('hdi_upper', np.nan),
                     'DW_mean': metrics.get('Durbin-Watson', {}).get('mean', np.nan),
                     'DW_std': metrics.get('Durbin-Watson', {}).get('std', np.nan),
                     'DW_hdi_lower': metrics.get('Durbin-Watson', {}).get('hdi_lower', np.nan),
@@ -913,6 +921,7 @@ def create_summary_tables(
             contrib_table.add_column("Avg SRMSE (mean ± std) 90% HDI", justify="right")
             contrib_table.add_column("Avg R² (mean ± std) 90% HDI", justify="right")
             contrib_table.add_column("Avg MAPE (%) (mean ± std) 90% HDI", justify="right")
+            contrib_table.add_column("Avg CRPS (mean ± std) 90% HDI", justify="right")
             
             # Sort by dataset and model for consistent display
             sorted_datasets = sorted(bayesian_contrib_results.keys())
@@ -933,7 +942,10 @@ def create_summary_tables(
                     mape_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
                         metrics.get('MAPE (%)', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 1
                     )
-                    contrib_table.add_row(dataset_name, model_name, bias_str, srmse_str, r2_str, mape_str)
+                    crps_str = bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(
+                        metrics.get('CRPS', {'mean': np.nan, 'std': np.nan, 'hdi_lower': np.nan, 'hdi_upper': np.nan}), 3
+                    )
+                    contrib_table.add_row(dataset_name, model_name, bias_str, srmse_str, r2_str, mape_str, crps_str)
             
             console.print()
             console.print(contrib_table)
@@ -958,7 +970,11 @@ def create_summary_tables(
                     'MAPE_mean': metrics.get('MAPE (%)', {}).get('mean', np.nan),
                     'MAPE_std': metrics.get('MAPE (%)', {}).get('std', np.nan),
                     'MAPE_hdi_lower': metrics.get('MAPE (%)', {}).get('hdi_lower', np.nan),
-                    'MAPE_hdi_upper': metrics.get('MAPE (%)', {}).get('hdi_upper', np.nan)
+                    'MAPE_hdi_upper': metrics.get('MAPE (%)', {}).get('hdi_upper', np.nan),
+                    'CRPS_mean': metrics.get('CRPS', {}).get('mean', np.nan),
+                    'CRPS_std': metrics.get('CRPS', {}).get('std', np.nan),
+                    'CRPS_hdi_lower': metrics.get('CRPS', {}).get('hdi_lower', np.nan),
+                    'CRPS_hdi_upper': metrics.get('CRPS', {}).get('hdi_upper', np.nan)
                 }
                 for dataset, models in bayesian_contrib_results.items()
                 for model, metrics in models.items()

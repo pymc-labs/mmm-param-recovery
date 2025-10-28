@@ -22,7 +22,7 @@ pip install -e ./mmm_data_generator
 ### 🔬 mmm-param-recovery  
 **Full benchmarking suite for MMM parameter recovery**
 - Comprehensive evaluation of PyMC, NumPyro, and Meridian samplers
-- Bayesian metrics, convergence diagnostics, and performance benchmarks
+- Bayesian metrics (R², MAPE, CRPS, etc.), convergence diagnostics, and performance benchmarks
 - Rich visualizations and automated benchmarking workflows
 - Includes all heavy dependencies for complete MMM analysis
 
@@ -115,7 +115,7 @@ python run_benchmark.py --datasets small_business --plots-only
 - `--force-rerun`: Force re-run even if cached results exist
 - `--no-force-rerun`: Use cached results (default behavior)
 - `--plots-only`: Generate only plots from existing models
-- `--bayesian-metrics`: Include Bayesian evaluation metrics
+- `--bayesian-metrics`: Include Bayesian evaluation metrics (R², MAPE, CRPS, SRMSE, Bias, Durbin-Watson)
 
 #### Output Structure
 
@@ -134,7 +134,7 @@ data/results/
 └── summary/
     ├── runtime_comparison.csv       # Runtime comparison table
     ├── ess_comparison.csv          # ESS metrics table
-    ├── performance_metrics.csv     # R², MAPE, Durbin-Watson
+    ├── performance_metrics.csv     # R², MAPE, CRPS, Durbin-Watson
     └── diagnostics_summary.csv     # Convergence diagnostics
 ```
 
