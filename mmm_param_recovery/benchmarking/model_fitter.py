@@ -33,7 +33,8 @@ def fit_meridian(
     n_tune: int,
     target_accept: float,
     seed: int,
-    console: Optional[Console] = None
+    console: Optional[Console] = None,
+    log_normal_beta: bool = True
 ) -> Tuple[model.Meridian, float, Dict[str, Optional[float]]]:
     """Fit Meridian model with specified sampling parameters.
     
@@ -60,6 +61,8 @@ def fit_meridian(
         Random seed
     console : Optional[Console]
         Rich console for output
+    log_normal_beta : bool
+        If True, use log-normal media effects distribution; if False, use normal
         
     Returns
     -------
@@ -78,7 +81,7 @@ def fit_meridian(
     
     # Build a fresh model from scratch (includes all data preparation)
     meridian_model = model_builder.build_meridian_model(
-        data_df, channel_columns, control_columns
+        data_df, channel_columns, control_columns, log_normal_beta
     )
     
     # Sample posterior

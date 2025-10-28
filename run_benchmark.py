@@ -76,6 +76,14 @@ def parse_arguments() -> argparse.Namespace:
     )
     
     parser.add_argument(
+        "--meridian-specs",
+        nargs="+",
+        default=["log-normal-beta"],
+        choices=["log-normal-beta", "normal-beta"],
+        help="Meridian model specs to use"
+    )
+    
+    parser.add_argument(
         "--libraries",
         nargs="+",
         default=["meridian", "pymc"],
@@ -148,6 +156,26 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def convert_spec_name_to_identifier(spec_name: str) -> str:
+    """Convert user-friendly spec name to internal identifier.
+    
+    Parameters
+    ----------
+    spec_name : str
+        User-friendly spec name (e.g., 'log-normal-beta')
+        
+    Returns
+    -------
+    str
+        Internal identifier (e.g., 'log_normal')
+    """
+    mapping = {
+        "log-normal-beta": "log_normal",
+        "normal-beta": "normal"
+    }
+    return mapping.get(spec_name, "log_normal")
+
+
 def run_benchmark_for_dataset(
     dataset_name: str,
     data_df: pd.DataFrame,
@@ -193,25 +221,29 @@ def run_benchmark_for_dataset(
         console.print()
         console.rule("[bold cyan]PHASE 1: FITTING MODELS (ISOLATED)[/bold cyan]")
         
-        # Fit Meridian
+        # Fit Meridian models for each spec
         if "meridian" in args.libraries:
-            if not storage.model_exists(dataset_name, "meridian") or args.force_rerun:
-                console.print("\n[bold yellow]--- Meridian ---[/bold yellow]")
-                meridian_result, runtime, ess = model_fitter.fit_meridian(
-                    data_df,
-                    channel_columns,
-                    control_columns,
-                    args.chains,
-                    args.draws,
-                    args.tune,
-                    args.target_accept,
-                    args.seed,
-                    console
-                )
-                storage.save_meridian_model(meridian_result, dataset_name, runtime, ess)
-                del meridian_result
-                gc.collect()
-                console.print("  [green]✓[/green] Model fitted, saved, and memory cleared")
+            for spec_name in args.meridian_specs:
+                spec_identifier = convert_spec_name_to_identifier(spec_name)
+                if not storage.model_exists(dataset_name, "meridian", spec_identifier=spec_identifier) or args.force_rerun:
+                    console.print(f"\n[bold yellow]--- Meridian - {spec_name} ---[/bold yellow]")
+                    log_normal_beta = (spec_name == "log-normal-beta")
+                    meridian_result, runtime, ess = model_fitter.fit_meridian(
+                        data_df,
+                        channel_columns,
+                        control_columns,
+                        args.chains,
+                        args.draws,
+                        args.tune,
+                        args.target_accept,
+                        args.seed,
+                        console,
+                        log_normal_beta
+                    )
+                    storage.save_meridian_model(meridian_result, dataset_name, runtime, ess, spec_identifier)
+                    del meridian_result
+                    gc.collect()
+                    console.print("  [green]✓[/green] Model fitted, saved, and memory cleared")
         
         # Fit PyMC models
         if "pymc" in args.libraries:
@@ -243,37 +275,41 @@ def run_benchmark_for_dataset(
     console.rule("[bold cyan]PHASE 2: EVALUATING MODELS[/bold cyan]")
     results = {}
     
-    # Load and evaluate Meridian
-    if "meridian" in args.libraries and storage.model_exists(dataset_name, "meridian"):
-        console.print("\n[bold yellow]--- Evaluating Meridian ---[/bold yellow]")
-        meridian_result, runtime, ess = storage.load_meridian_model(dataset_name)
-        results["Meridian"] = (meridian_result, runtime, ess)
-        
-        perf_rows = evaluation.evaluate_meridian_fit(meridian_result, data_df)
-        for row in perf_rows:
-            row["Dataset"] = dataset_name
-        all_performance_rows.extend(perf_rows)
-        
-        # Evaluate channel contributions
-        channel_df, avg_metrics = evaluation.evaluate_meridian_channel_contributions(
-            meridian_result, truth_df, channel_columns, dataset_name
-        )
-        all_channel_contribution_rows.append(channel_df)
-        channel_contribution_averages.append({
-            "Dataset": dataset_name,
-            "Model": "Meridian",
-            **avg_metrics
-        })
-        
-        # Count parameters
-        param_counts = parameter_counter.categorize_parameters(meridian_result, "meridian")
-        param_counts["Dataset"] = dataset_name
-        param_counts["Model"] = "Meridian"
-        all_parameter_counts.append(param_counts)
-        
-        visualization.plot_meridian_posterior_predictive(
-            meridian_result, data_df, dataset_name
-        )
+    # Load and evaluate Meridian models for each spec
+    if "meridian" in args.libraries:
+        for spec_name in args.meridian_specs:
+            spec_identifier = convert_spec_name_to_identifier(spec_name)
+            if storage.model_exists(dataset_name, "meridian", spec_identifier=spec_identifier):
+                console.print(f"\n[bold yellow]--- Evaluating Meridian - {spec_name} ---[/bold yellow]")
+                meridian_result, runtime, ess = storage.load_meridian_model(dataset_name, spec_identifier)
+                model_key = f"Meridian - {spec_name}"
+                results[model_key] = (meridian_result, runtime, ess)
+                
+                perf_rows = evaluation.evaluate_meridian_fit(meridian_result, data_df, model_key)
+                for row in perf_rows:
+                    row["Dataset"] = dataset_name
+                all_performance_rows.extend(perf_rows)
+                
+                # Evaluate channel contributions
+                channel_df, avg_metrics = evaluation.evaluate_meridian_channel_contributions(
+                    meridian_result, truth_df, channel_columns, dataset_name, model_key
+                )
+                all_channel_contribution_rows.append(channel_df)
+                channel_contribution_averages.append({
+                    "Dataset": dataset_name,
+                    "Model": model_key,
+                    **avg_metrics
+                })
+                
+                # Count parameters
+                param_counts = parameter_counter.categorize_parameters(meridian_result, "meridian")
+                param_counts["Dataset"] = dataset_name
+                param_counts["Model"] = model_key
+                all_parameter_counts.append(param_counts)
+                
+                visualization.plot_meridian_posterior_predictive(
+                    meridian_result, data_df, dataset_name
+                )
     
     # Load and evaluate PyMC models  
     if "pymc" in args.libraries:
@@ -323,31 +359,33 @@ def run_benchmark_for_dataset(
         console.rule("[bold cyan]PHASE 3: BAYESIAN EVALUATION[/bold cyan]")
         bayesian_results = {}
         
-        # Evaluate Meridian with Bayesian metrics
-        if "Meridian" in results:
-            console.print("\n[bold yellow]--- Bayesian Evaluation: Meridian ---[/bold yellow]")
-            meridian_model, _, _ = results["Meridian"]
-            
-            # Revenue metrics
-            revenue_metrics = bayesian_evaluation.evaluate_revenue_bayesian(
-                meridian_model, data_df, 'meridian'
-            )
-            
-            # Channel contribution metrics
-            contrib_detailed, contrib_aggregated = bayesian_evaluation.evaluate_contributions_bayesian(
-                meridian_model, truth_df, channel_columns, 'meridian'
-            )
-            
-            bayesian_results["Meridian"] = {
-                'revenue': revenue_metrics,
-                'contributions_detailed': contrib_detailed,
-                'contributions_aggregated': contrib_aggregated
-            }
-            
-            # Print summary
-            for geo, metrics in revenue_metrics.items():
-                console.print(f"  {geo} - R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(metrics['R²'], 3)}")
-            console.print(f"  Channel Contributions - Avg R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(contrib_aggregated['R²'], 3)}")
+        # Evaluate Meridian models with Bayesian metrics
+        for spec_name in args.meridian_specs:
+            model_key = f"Meridian - {spec_name}"
+            if model_key in results:
+                console.print(f"\n[bold yellow]--- Bayesian Evaluation: {model_key} ---[/bold yellow]")
+                meridian_model, _, _ = results[model_key]
+                
+                # Revenue metrics
+                revenue_metrics = bayesian_evaluation.evaluate_revenue_bayesian(
+                    meridian_model, data_df, 'meridian'
+                )
+                
+                # Channel contribution metrics
+                contrib_detailed, contrib_aggregated = bayesian_evaluation.evaluate_contributions_bayesian(
+                    meridian_model, truth_df, channel_columns, 'meridian'
+                )
+                
+                bayesian_results[model_key] = {
+                    'revenue': revenue_metrics,
+                    'contributions_detailed': contrib_detailed,
+                    'contributions_aggregated': contrib_aggregated
+                }
+                
+                # Print summary
+                for geo, metrics in revenue_metrics.items():
+                    console.print(f"  {geo} - R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(metrics['R²'], 3)}")
+                console.print(f"  Channel Contributions - Avg R²: {bayesian_evaluation.bayesian_metrics.format_metric_with_hdi(contrib_aggregated['R²'], 3)}")
         
         # Evaluate PyMC models with Bayesian metrics
         for sampler in args.samplers:
@@ -380,9 +418,20 @@ def run_benchmark_for_dataset(
         results["bayesian_metrics"] = bayesian_results
     
     # Generate comparison plot if both models exist
-    if "Meridian" in results and "PyMC-Marketing - nutpie" in results:
+    # Prefer log-normal-beta spec for Meridian, but use any available
+    meridian_key = None
+    if "Meridian - log-normal-beta" in results:
+        meridian_key = "Meridian - log-normal-beta"
+    else:
+        # Fall back to any other Meridian spec
+        for key in results.keys():
+            if key.startswith("Meridian -"):
+                meridian_key = key
+                break
+    
+    if meridian_key and "PyMC-Marketing - nutpie" in results:
         console.print("\n[bold yellow]--- Generating Model Comparison Plot ---[/bold yellow]")
-        meridian_result, _, _ = results["Meridian"]
+        meridian_result, _, _ = results[meridian_key]
         pymc_nutpie_result, _, _ = results["PyMC-Marketing - nutpie"]
         
         visualization.plot_model_comparison(
@@ -992,6 +1041,9 @@ def main() -> None:
     config_text = f"""[bold]Configuration:[/bold]
 • Datasets: {', '.join(args.datasets)}
 • Libraries: {', '.join(args.libraries)}"""
+    
+    if "meridian" in args.libraries:
+        config_text += f"\n• Meridian Specs: {', '.join(args.meridian_specs)}"
     
     if "pymc" in args.libraries:
         config_text += f"\n• Samplers: {', '.join(args.samplers)}"

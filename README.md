@@ -106,6 +106,7 @@ python run_benchmark.py --datasets small_business --plots-only
 
 - `--datasets`: Choose from `small_business`, `medium_business`, `large_business`, `growing_business`
 - `--samplers`: PyMC samplers - `pymc`, `blackjax`, `numpyro`, `nutpie` 
+- `--meridian-specs`: Meridian model specs - `log-normal-beta`, `normal-beta` (default: `log-normal-beta`)
 - `--libraries`: Run only specific libraries - `meridian`, `pymc`
 - `--chains`: Number of MCMC chains (default: 4)
 - `--draws`: Number of draws per chain (default: 1000)
@@ -122,20 +123,20 @@ python run_benchmark.py --datasets small_business --plots-only
 ```
 data/results/
 ├── {dataset_name}/
-│   ├── data.pkl                    # Cached generated dataset
-│   ├── meridian_model.pkl          # Fitted Meridian model
-│   ├── meridian_stats.pkl          # Meridian runtime & ESS
-│   ├── pymc_{sampler}_model.nc     # PyMC models per sampler
-│   ├── pymc_{sampler}_stats.pkl    # PyMC stats per sampler
-│   └── plots/                      
+│   ├── data.pkl                           # Cached generated dataset
+│   ├── meridian_{spec}_model.pkl          # Fitted Meridian models (e.g., meridian_log_normal_model.pkl)
+│   ├── meridian_{spec}_stats.pkl           # Meridian runtime & ESS per spec
+│   ├── pymc_{sampler}_model.nc            # PyMC models per sampler
+│   ├── pymc_{sampler}_stats.pkl           # PyMC stats per sampler
+│   └── plots/                              
 │       ├── posterior_predictive_meridian.png
 │       ├── posterior_predictive_pymc_{sampler}.png
-│       └── model_comparison.png    # Combined comparison plot
+│       └── model_comparison.png            # Combined comparison plot
 └── summary/
-    ├── runtime_comparison.csv       # Runtime comparison table
-    ├── ess_comparison.csv          # ESS metrics table
-    ├── performance_metrics.csv     # R², MAPE, CRPS, Durbin-Watson
-    └── diagnostics_summary.csv     # Convergence diagnostics
+    ├── runtime_comparison.csv              # Runtime comparison table
+    ├── ess_comparison.csv                 # ESS metrics table
+    ├── performance_metrics.csv            # R², MAPE, CRPS, Durbin-Watson
+    └── diagnostics_summary.csv            # Convergence diagnostics
 ```
 
 
@@ -187,13 +188,16 @@ Where `prior_sigma_per_channel = n_channels * spend_share` (spend share normaliz
 - **Saturation**: Hill transformation applied after adstock
 - **Trend**: Spline-based with knots every 26 weeks
 - **Geo effects**: Unique sigma for each geo
+- **Media effects distribution**: Configurable - `log-normal-beta` (default) or `normal-beta`
 
 #### Prior Specifications
+
+**log-normal-beta spec (default)**:
 ```python
 # Adstock decay  
 alpha_m ~ Beta(alpha=1.0, beta=3.0)  # Per channel (matching PyMC)
 
-# Media coefficients
+# Media coefficients (log-normal)
 beta_m ~ LogNormal(mu=0, sigma=prior_sigma_per_channel)  # Population level
 beta_gm ~ Normal(0, 1)  # Geo-specific deviations
 eta_m ~ HalfNormal(1)  # Media noise
@@ -216,6 +220,9 @@ knot_values ~ Normal(0, 5)  # Per knot
 # Observation noise
 sigma ~ HalfNormal(5)  # Single global parameter
 ```
+
+**normal-beta spec**:
+Same as above, but `beta_m ~ Normal(mu=0, sigma=prior_sigma_per_channel)` instead of LogNormal.
 
 ### Key Differences
 

@@ -22,7 +22,7 @@ from meridian.model import model as meridian_model_module
 from pymc_marketing.mmm.multidimensional import MMM
 
 
-def get_paths(dataset_name: str, library: str, sampler: Optional[str] = None) -> Tuple[Path, Path]:
+def get_paths(dataset_name: str, library: str, sampler: Optional[str] = None, spec_identifier: Optional[str] = None) -> Tuple[Path, Path]:
     """Get model and stats paths for a given configuration.
     
     Parameters
@@ -33,6 +33,8 @@ def get_paths(dataset_name: str, library: str, sampler: Optional[str] = None) ->
         Either 'meridian' or 'pymc'
     sampler : Optional[str]
         Sampler name for PyMC models
+    spec_identifier : Optional[str]
+        Spec identifier for Meridian models (e.g., 'log_normal', 'normal')
         
     Returns
     -------
@@ -42,8 +44,16 @@ def get_paths(dataset_name: str, library: str, sampler: Optional[str] = None) ->
     dir_path = Path(f"data/results/{dataset_name}")
     dir_path.mkdir(parents=True, exist_ok=True)
     
-    suffix = f"_{sampler}" if sampler else ""
-    model_ext = ".pkl" if library.lower() == "meridian" else ".nc"
+    if library.lower() == "meridian":
+        if spec_identifier:
+            suffix = f"_{spec_identifier}"
+        else:
+            # Backward compatibility: default to log_normal
+            suffix = "_log_normal"
+        model_ext = ".pkl"
+    else:
+        suffix = f"_{sampler}" if sampler else ""
+        model_ext = ".nc"
     
     return (
         dir_path / f"{library}{suffix}_model{model_ext}",
@@ -71,7 +81,7 @@ def get_plot_path(dataset_name: str, plot_name: str) -> Path:
     return plot_dir / plot_name
 
 
-def model_exists(dataset_name: str, library: str, sampler: Optional[str] = None) -> bool:
+def model_exists(dataset_name: str, library: str, sampler: Optional[str] = None, spec_identifier: Optional[str] = None) -> bool:
     """Check if model and stats files exist.
     
     Parameters
@@ -82,13 +92,15 @@ def model_exists(dataset_name: str, library: str, sampler: Optional[str] = None)
         Either 'meridian' or 'pymc'
     sampler : Optional[str]
         Sampler name for PyMC models
+    spec_identifier : Optional[str]
+        Spec identifier for Meridian models (e.g., 'log_normal', 'normal')
         
     Returns
     -------
     bool
         True if both model and stats files exist
     """
-    model_path, stats_path = get_paths(dataset_name, library, sampler)
+    model_path, stats_path = get_paths(dataset_name, library, sampler, spec_identifier)
     return model_path.exists() and stats_path.exists()
 
 
@@ -96,7 +108,8 @@ def save_meridian_model(
     model: Any,
     dataset_name: str,
     runtime: float,
-    ess_stats: Dict[str, Optional[float]]
+    ess_stats: Dict[str, Optional[float]],
+    spec_identifier: Optional[str] = None
 ) -> None:
     """Save Meridian model and statistics.
     
@@ -110,15 +123,18 @@ def save_meridian_model(
         Runtime in seconds
     ess_stats : Dict[str, Optional[float]]
         ESS statistics
+    spec_identifier : Optional[str]
+        Spec identifier for Meridian models (e.g., 'log_normal', 'normal')
     """
-    model_path, stats_path = get_paths(dataset_name, "meridian")
+    model_path, stats_path = get_paths(dataset_name, "meridian", spec_identifier=spec_identifier)
     
     meridian_model_module.save_mmm(model, str(model_path))
     
     with open(stats_path, 'wb') as f:
         pickle.dump({'runtime': runtime, 'ess': ess_stats}, f)
     
-    print(f"  ✓ Saved Meridian model and diagnostics at {model_path}")
+    spec_label = f" ({spec_identifier})" if spec_identifier else ""
+    print(f"  ✓ Saved Meridian{spec_label} model and diagnostics at {model_path}")
 
 
 def save_pymc_model(
@@ -153,27 +169,30 @@ def save_pymc_model(
     print(f"  ✓ Saved PyMC-Marketing - {sampler} model and diagnostics at {model_path}")
 
 
-def load_meridian_model(dataset_name: str) -> Tuple[Any, float, Dict[str, Optional[float]]]:
+def load_meridian_model(dataset_name: str, spec_identifier: Optional[str] = None) -> Tuple[Any, float, Dict[str, Optional[float]]]:
     """Load Meridian model and statistics.
     
     Parameters
     ----------
     dataset_name : str
         Name of the dataset
+    spec_identifier : Optional[str]
+        Spec identifier for Meridian models (e.g., 'log_normal', 'normal')
         
     Returns
     -------
     Tuple[meridian.model.model.Meridian, float, Dict]
         Model, runtime, and ESS stats
     """
-    model_path, stats_path = get_paths(dataset_name, "meridian")
+    model_path, stats_path = get_paths(dataset_name, "meridian", spec_identifier=spec_identifier)
     
     model = meridian_model_module.load_mmm(str(model_path))
     
     with open(stats_path, 'rb') as f:
         stats = pickle.load(f)
     
-    print(f"  ✓ Loaded Meridian from cache ({stats['runtime']:.1f}s)")
+    spec_label = f" ({spec_identifier})" if spec_identifier else ""
+    print(f"  ✓ Loaded Meridian{spec_label} from cache ({stats['runtime']:.1f}s)")
     return model, stats['runtime'], stats['ess']
 
 

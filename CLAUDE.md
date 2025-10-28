@@ -85,11 +85,11 @@ Modular components for model comparison:
   - `setup_plot_style()` - Configure plotting style
 
 - **storage.py**: Model persistence
-  - `save_meridian_model(model, dataset_name, runtime, ess)`
-  - `save_pymc_model(model, dataset_name, sampler, runtime, ess)`
-  - `load_meridian_model(dataset_name)` - Returns (model, runtime, ess)
+  - `save_meridian_model(model, dataset_name, runtime, ess, spec_identifier=None)` - Save Meridian model with optional spec identifier
+  - `save_pymc_model(model, dataset_name, sampler, runtime, ess)` - Save PyMC model
+  - `load_meridian_model(dataset_name, spec_identifier=None)` - Returns (model, runtime, ess)
   - `load_pymc_model(dataset_name, sampler)` - Returns (model, runtime, ess)
-  - `model_exists(dataset_name, library, sampler=None)` - Returns bool
+  - `model_exists(dataset_name, library, sampler=None, spec_identifier=None)` - Returns bool
   - `save_summary_dataframe(df, name)` - Save summary DataFrames
   - `save_dataset(dataset_result, dataset_name)` - Save dataset
   - `load_dataset(dataset_name)` - Load dataset
@@ -396,6 +396,7 @@ data_df = pd.DataFrame(
 ```bash
 python run_benchmark.py --datasets small_business medium_business \
                        --samplers pymc nutpie \
+                       --meridian-specs log-normal-beta \
                        --chains 4 --draws 1000 --tune 1000
 ```
 
@@ -404,6 +405,13 @@ python run_benchmark.py --datasets small_business medium_business \
 python run_benchmark.py --datasets small_business \
                        --samplers nutpie \
                        --chains 2 --draws 500 --tune 500
+```
+
+### Compare Meridian Specs
+```bash
+python run_benchmark.py --datasets small_business \
+                       --meridian-specs log-normal-beta normal-beta \
+                       --chains 4 --draws 1000 --tune 1000
 ```
 
 ### Generate Plots Only
@@ -415,18 +423,18 @@ python run_benchmark.py --datasets small_business --plots-only
 ```
 data/results/
 ├── {dataset}/
-│   ├── data.pkl                    # Cached dataset
-│   ├── meridian_model.pkl          # Fitted model
-│   ├── pymc_{sampler}_model.nc     # PyMC models
-│   └── plots/                      # Visualizations
+│   ├── data.pkl                           # Cached dataset
+│   ├── meridian_{spec}_model.pkl          # Fitted Meridian models (e.g., meridian_log_normal_model.pkl)
+│   ├── pymc_{sampler}_model.nc            # PyMC models
+│   └── plots/                             # Visualizations
 │       ├── posterior_predictive_meridian.png
 │       ├── posterior_predictive_pymc_{sampler}.png
-│       └── model_comparison.png    # Combined comparison plot
+│       └── model_comparison.png           # Combined comparison plot
 └── summary/
-    ├── runtime_comparison.csv      # Performance tables
+    ├── runtime_comparison.csv             # Performance tables
     ├── ess_comparison.csv
     ├── performance_metrics.csv
-    └── combined_plots/            # Comparison visualizations
+    └── combined_plots/                    # Comparison visualizations
 ```
 
 ## Code Style Guidelines

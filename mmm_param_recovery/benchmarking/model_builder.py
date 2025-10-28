@@ -140,7 +140,8 @@ def build_meridian_prior(
 
 def build_meridian_model_spec(
     prior: prior_distribution.PriorDistribution,
-    n_time: int
+    n_time: int,
+    log_normal_beta=True
 ) -> spec.ModelSpec:
     """Build Meridian model specification.
     
@@ -158,6 +159,7 @@ def build_meridian_model_spec(
     """
     return spec.ModelSpec(
         prior=prior,
+        media_effects_dist = "log_normal" if log_normal_beta else "normal",
         hill_before_adstock=False,
         max_lag=8,
         unique_sigma_for_each_geo=True,
@@ -175,7 +177,8 @@ def build_meridian_model_spec(
 def build_meridian_model(
     data_df: pd.DataFrame,
     channel_columns: List[str],
-    control_columns: List[str]
+    control_columns: List[str],
+    log_normal_beta: bool = True
 ) -> model.Meridian:
     """Build complete Meridian model.
     
@@ -187,6 +190,8 @@ def build_meridian_model(
         List of channel column names
     control_columns : List[str]
         List of control column names
+    log_normal_beta : bool
+        If True, use log-normal media effects distribution; if False, use normal
         
     Returns
     -------
@@ -198,7 +203,7 @@ def build_meridian_model(
     prior_sigma = None  # Not used anymore, using default priors
     built_data = build_meridian_data(data_df, channel_columns, control_columns)
     prior = build_meridian_prior(built_data, channel_columns, prior_sigma)
-    model_spec = build_meridian_model_spec(prior, len(built_data.time))
+    model_spec = build_meridian_model_spec(prior, len(built_data.time), log_normal_beta)
     
     return model.Meridian(input_data=built_data, model_spec=model_spec)
 
@@ -216,23 +221,24 @@ def build_pymc_saturation(n_geos: int) -> HillSaturationSigmoid:
     HillSaturationSigmoid
         Saturation transformation object
     """
-    n_geos = prior_sigma.shape[0]
+    from pymc_marketing.special_priors import LogNormalPrior
     
     # For single geo models, sigma only has channel dimension
     # For multi-geo models, sigma has both channel and geo dimensions
     if n_geos == 1:
-        sigma_prior = Prior(
-            "HalfNormal",
-            sigma=prior_sigma.mean(axis=0),
-            dims=("channel",)
+        sigma_prior = LogNormalPrior(
+            mean=0.25,
+            std=0.25,
+            dims=("channel",),
         )
     else:
-        sigma_prior = Prior(
-                "InverseGamma",
-                mu=Prior("HalfNormal", sigma=prior_sigma.mean(axis=0), dims=("channel",)),
-                sigma=Prior("HalfNormal", sigma=1, dims=("channel", )),
-                dims=("geo", "channel",)
-            )
+        # Multi-geo: hierarchical LogNormal prior
+        sigma_prior = LogNormalPrior(
+            mean=Prior("Gamma", mu=0.25, sigma=0.10, dims=("channel",)),
+            std=Prior("Exponential", scale=0.10, dims=("channel",)),
+            dims=("channel", "geo"),
+            centered=False,
+        )
     
     return HillSaturationSigmoid(
         priors={

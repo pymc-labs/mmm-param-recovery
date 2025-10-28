@@ -133,7 +133,8 @@ def calculate_durbin_watson(residuals: np.ndarray) -> float:
 
 def evaluate_meridian_fit(
     meridian_model: Any,
-    data_df: pd.DataFrame
+    data_df: pd.DataFrame,
+    model_name: str = "Meridian"
 ) -> List[Dict[str, Any]]:
     """Evaluate Meridian model fit.
     
@@ -143,6 +144,8 @@ def evaluate_meridian_fit(
         Fitted Meridian model
     data_df : pd.DataFrame
         Original dataset
+    model_name : str
+        Name of the model (e.g., "Meridian - log-normal-beta")
         
     Returns
     -------
@@ -166,7 +169,7 @@ def evaluate_meridian_fit(
         dw = calculate_durbin_watson(actual - expected)
         
         results.append({
-            "Model": "Meridian",
+            "Model": model_name,
             "Geo": geo_label,
             "R²": round(r2, 4) if not np.isnan(r2) else None,
             "MAPE (%)": round(mape, 2) if not np.isnan(mape) else None,
@@ -513,7 +516,8 @@ def evaluate_meridian_channel_contributions(
     meridian_model: Any,
     truth_df: pd.DataFrame,
     channel_columns: List[str],
-    dataset_name: str
+    dataset_name: str,
+    model_name: str = "Meridian"
 ) -> Tuple[pd.DataFrame, Dict[str, float]]:
     """Evaluate Meridian channel contribution reconstruction.
     
@@ -527,6 +531,8 @@ def evaluate_meridian_channel_contributions(
         Channel column names
     dataset_name : str
         Name of the dataset
+    model_name : str
+        Name of the model (e.g., "Meridian - log-normal-beta")
         
     Returns
     -------
@@ -539,7 +545,7 @@ def evaluate_meridian_channel_contributions(
     
     return evaluate_channel_contributions(
         truth_df, predicted_contrib, channel_columns,
-        "Meridian", dataset_name
+        model_name, dataset_name
     )
 
 
