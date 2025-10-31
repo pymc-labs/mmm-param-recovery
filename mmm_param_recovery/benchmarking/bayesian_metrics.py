@@ -17,6 +17,7 @@
 import numpy as np
 import arviz as az
 from typing import Dict, Any
+from pymc_marketing.metrics import per_observation_crps
 
 
 def calculate_r2_vectorized(actual: np.ndarray, predicted: np.ndarray) -> np.ndarray:
@@ -200,46 +201,8 @@ def calculate_crps_vectorized(actual: np.ndarray, predicted: np.ndarray) -> np.n
     np.ndarray
         CRPS values, shape (n_times,) - one CRPS value per time point
     """
-    # Handle NaNs
-    mask = ~np.isnan(actual)
-    actual_clean = actual[mask]
-    predicted_clean = predicted[:, mask]
     
-    if len(actual_clean) == 0:
-        return np.full(len(actual), np.nan)
-    
-    n_samples, n_times = predicted_clean.shape
-    
-    if n_samples < 2:
-        return np.full(n_times, np.nan)
-    
-    # Calculate CRPS for each time point
-    crps_values = np.zeros(n_times)
-    
-    for t in range(n_times):
-        y = actual_clean[t]
-        x = predicted_clean[:, t]
-        
-        # Sort predictions for efficient computation
-        x_sorted = np.sort(x)
-        
-        # CRPS formula for empirical distribution:
-        # CRPS = (1/n) Σᵢ |xᵢ - y| - (1/(2n²)) Σᵢ Σⱼ |xᵢ - xⱼ|
-        
-        # First term: mean absolute deviation from actual
-        term1 = np.mean(np.abs(x - y))
-        
-        # Second term: mean pairwise absolute differences
-        # For sorted array, can compute more efficiently
-        term2 = np.mean(np.abs(x_sorted[:, None] - x_sorted[None, :]))
-        
-        crps_values[t] = term1 - 0.5 * term2
-    
-    # Map back to original positions (handling NaNs)
-    result = np.full(len(actual), np.nan)
-    result[mask] = crps_values
-    
-    return result
+    return per_observation_crps(actual, predicted)
 
 
 def compute_summary_stats(metric_array: np.ndarray, hdi_prob: float = 0.90) -> Dict[str, float]:
